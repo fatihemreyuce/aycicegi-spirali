@@ -23,7 +23,7 @@ from matplotlib.figure import Figure
 from fibonacci import fibonacci_dizisi, fibonacci_n, formatla_buyuk_sayi
 from graph_builder import grafi_olustur
 from animator import SpiralAnimator, HIZ_AYARLARI
-from utils import oran_ve_fark, PHI
+from utils import oran_ve_fark, PHI, ALTIN_ACI_DERECE
 from validator import (
     dogrula_ve_index,
     en_yakin_iki_fibonacci_indeksli,
@@ -61,6 +61,10 @@ class AyCicegiGUI:
         self.fib = []
         self.animator: SpiralAnimator | None = None
         self.vurgu_indexleri: set[int] = set()
+
+        # Pan (sol-tık basılı tut + sürükle) için durum
+        self._pan_anchor: tuple[float, float] | None = None
+        self._pan_ax = None
 
         # Tkinter değişkenleri
         self.n_var = tk.IntVar(value=100)
@@ -113,6 +117,13 @@ class AyCicegiGUI:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.canvas.draw()
 
+        # Mouse scroll / touchpad iki-parmak scroll ile imleç-merkezli zoom
+        self.canvas.mpl_connect("scroll_event", self._zoom_olay)
+        # Sol-tık basılı tutup sürükleyerek kaydırma (pan)
+        self.canvas.mpl_connect("button_press_event", self._pan_basla)
+        self.canvas.mpl_connect("motion_notify_event", self._pan_hareket)
+        self.canvas.mpl_connect("button_release_event", self._pan_bitir)
+
     # ------------------------------------------------------------------ #
     # Stil ve yerleşim
     # ------------------------------------------------------------------ #
@@ -132,6 +143,8 @@ class AyCicegiGUI:
         # Validator sonuç etiketleri — büyük ve belirgin
         stil.configure("Sonuc.TLabel", background=PANEL_BG, foreground=ACCEPT_RENGI, font=("Segoe UI", 13, "bold"))
         stil.configure("SonucAlt.TLabel", background=PANEL_BG, foreground=PANEL_FG, font=("Segoe UI", 10, "italic"))
+        # Validator açıklama metni için soluk-küçük italik stil
+        stil.configure("Yardim.TLabel", background=PANEL_BG, foreground="#b0b0b0", font=("Segoe UI", 9, "italic"))
         stil.configure("Panel.TButton", font=("Segoe UI", 10, "bold"))
         stil.configure("Panel.TRadiobutton", background=PANEL_BG, foreground=PANEL_FG, font=("Segoe UI", 9))
         stil.configure("Panel.Horizontal.TScale", background=PANEL_BG)
@@ -151,7 +164,8 @@ class AyCicegiGUI:
         self.orta_panel.grid(row=0, column=1, sticky="nsew")
 
         self.sag_panel = ttk.Frame(self.root, style="Panel.TFrame", padding=12)
-        self.sag_panel.grid(row=0, column=2, sticky="nse")
+        # nsew: sütunun tamamını doldur — anchor="w" etiketleri sol kenara hizalansın
+        self.sag_panel.grid(row=0, column=2, sticky="nsew")
 
         self._sol_paneli_kur()
         self._sag_paneli_kur()
@@ -211,6 +225,13 @@ class AyCicegiGUI:
         btn_cerc.pack(fill="x", pady=(0, 16))
         ttk.Button(btn_cerc, text="Çiz", style="Panel.TButton",
                    command=self._ciz).pack(fill="x", pady=2)
+        # Geri/İleri adım butonları yan yana — medya oynatıcı düzeni
+        adim_satiri = ttk.Frame(btn_cerc, style="Panel.TFrame")
+        adim_satiri.pack(fill="x", pady=2)
+        ttk.Button(adim_satiri, text="◀ Geri", style="Panel.TButton",
+                   command=self._geri).pack(side="left", fill="x", expand=True, padx=(0, 1))
+        ttk.Button(adim_satiri, text="▶ Adım", style="Panel.TButton",
+                   command=self._adim).pack(side="left", fill="x", expand=True, padx=(1, 0))
         ttk.Button(btn_cerc, text="Sıfırla", style="Panel.TButton",
                    command=self._sifirla).pack(fill="x", pady=2)
         # Graf modu toggle butonu — metni mevcut moda göre değişir
@@ -222,12 +243,39 @@ class AyCicegiGUI:
         )
         self.graf_modu_btn.pack(fill="x", pady=2)
 
-        # Validator bölümü
-        ttk.Label(self.sol_panel, text="VALIDATOR", style="Baslik.TLabel").pack(anchor="w", pady=(8, 4))
-        ttk.Label(self.sol_panel, text="Sayı (Fibonacci?):", style="Panel.TLabel").pack(anchor="w")
-        ttk.Entry(self.sol_panel, textvariable=self.dogrulanacak_var, style="Panel.TEntry").pack(fill="x", pady=(2, 4))
+        # Validator bölümü — açıklayıcı başlık + kullanım ipuçları
+        ttk.Label(self.sol_panel, text="FIBONACCI KONTROLÜ", style="Baslik.TLabel").pack(anchor="w", pady=(8, 2))
+        ttk.Label(
+            self.sol_panel,
+            text="Bir tam sayı yazıp Fibonacci dizisinde olup\nolmadığını kontrol edin.",
+            style="Yardim.TLabel",
+            wraplength=220,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 4))
+
+        ttk.Label(self.sol_panel, text="Test edilecek sayı:", style="Panel.TLabel").pack(anchor="w")
+        ttk.Entry(self.sol_panel, textvariable=self.dogrulanacak_var, style="Panel.TEntry").pack(fill="x", pady=(2, 2))
+        ttk.Label(
+            self.sol_panel,
+            text="örn. 21, 89, 144 (Fibonacci) — 22, 100 (değil)",
+            style="Yardim.TLabel",
+            wraplength=220,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 4))
+
         ttk.Button(self.sol_panel, text="Doğrula", style="Panel.TButton",
                    command=self._dogrula).pack(fill="x")
+
+        # Ne olacağını önceden açıkla — kullanıcı ilk kez bakanken bile anlasın
+        ttk.Label(
+            self.sol_panel,
+            text="✅ Fibonacci ise: ilgili tohum (vᵢ) mavi vurgulanır\n"
+                 "❌ Değilse: en yakın iki Fibonacci listelenir",
+            style="Yardim.TLabel",
+            wraplength=220,
+            justify="left",
+        ).pack(anchor="w", pady=(6, 0))
+
         # Sonuç satırı (büyük, renkli) — _dogrula ile rengi güncellenir
         self._dogrulama_label = ttk.Label(
             self.sol_panel, textvariable=self.dogrulama_sonuc_var,
@@ -270,10 +318,16 @@ class AyCicegiGUI:
             command=self._komsuluk_matrisi_goster,
         ).pack(fill="x", pady=(6, 0))
 
-        # Sabit referans değerler
+        # Sabit referans değerler — matematiksel formüller + hesaplanmış değerler
         ttk.Label(self.sag_panel, text="REFERANSLAR", style="Baslik.TLabel").pack(anchor="w", pady=(18, 4))
-        ttk.Label(self.sag_panel, text=f"phi = {PHI:.10f}", style="Panel.TLabel").pack(anchor="w")
-        ttk.Label(self.sag_panel, text="Altın açı = 137.5077°", style="Panel.TLabel").pack(anchor="w")
+
+        ttk.Label(self.sag_panel, text="Altın oran:", style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text="φ = (1 + √5) / 2", style="Bilgi.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text=f"φ ≈ {PHI:.10f}", style="Bilgi.TLabel").pack(anchor="w")
+
+        ttk.Label(self.sag_panel, text="Altın açı:", style="Panel.TLabel").pack(anchor="w", pady=(6, 0))
+        ttk.Label(self.sag_panel, text="α = 360° × (1 − 1/φ)", style="Bilgi.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text=f"α ≈ {ALTIN_ACI_DERECE:.4f}°", style="Bilgi.TLabel").pack(anchor="w")
 
         # Graf Bilgisi alt paneli — graf modu açıldığında pack ile görünür kılınır
         self.graf_bilgisi_frame = ttk.Frame(self.sag_panel, style="Panel.TFrame")
@@ -363,6 +417,51 @@ class AyCicegiGUI:
         if self.graf_modu:
             self._graf_bilgisini_guncelle()
 
+    def _adim(self) -> None:
+        """
+        Manuel adım: tek bir tohum daha yerleştirir.
+        - Animatör yoksa veya n değiştiyse sahneyi yeniden kurar (animasyon başlatmadan).
+        - Otomatik animasyon çalışıyorsa keser, son durumdan itibaren manuel ilerler.
+        """
+        n = int(self.n_var.get())
+
+        # Sahneyi yeniden kurma gereksinimi: animatör yok ya da farklı n için kurulmuş
+        yeniden_kur = (
+            self.animator is None
+            or self.G is None
+            or self.G.number_of_nodes() != n
+        )
+        if yeniden_kur:
+            if self.animator is not None:
+                self.animator.durdur()
+            # Bir fazla eleman tutalım — son tohumda da F(i+1)/F(i) hesaplanabilsin
+            self.fib = fibonacci_dizisi(n + 1)
+            self.G = grafi_olustur(n)
+            self.figure.clear()
+            self.ax = self.figure.add_subplot(111)
+            self.animator = SpiralAnimator(
+                self.G,
+                ax=self.ax,
+                vurgu_indexleri=self.vurgu_indexleri,
+                graf_modu=self.graf_modu,
+            )
+            if self.graf_modu:
+                self._graf_bilgisini_guncelle()
+
+        # Sağ paneldeki canlı bilgiyi her adımda güncellemek için geri çağrıyı bağla
+        self.animator._on_step = self._adim_bilgisini_guncelle
+        self.animator.adim_at()
+        self.canvas.draw_idle()
+
+    def _geri(self) -> None:
+        """Manuel adımda bir geri al — son yerleşen tohumu sahneden kaldırır."""
+        if self.animator is None:
+            return
+        # Sağ paneldeki bilgiyi yeni durumla güncellemek için geri çağrıyı bağla
+        self.animator._on_step = self._adim_bilgisini_guncelle
+        self.animator.adim_geri()
+        self.canvas.draw_idle()
+
     def _sifirla(self) -> None:
         """Sahneyi temizle, bilgi panelini sıfırla."""
         if self.animator is not None:
@@ -436,6 +535,77 @@ class AyCicegiGUI:
                 pass
 
     # ------------------------------------------------------------------ #
+    # Zoom (mouse wheel + touchpad iki-parmak scroll)
+    # ------------------------------------------------------------------ #
+
+    def _zoom_olay(self, event) -> None:
+        """İmleç merkezli zoom — yukarı scroll yakınlaştırır, aşağı uzaklaştırır."""
+        ax = event.inaxes
+        if ax is None or event.xdata is None or event.ydata is None:
+            return
+
+        # Her tıkta %20 — Ctrl basılıysa daha agresif (touchpad pinch için)
+        olcek = 1.5 if getattr(event, "key", None) == "control" else 1.2
+        if event.button == "up":
+            faktor = 1.0 / olcek
+        elif event.button == "down":
+            faktor = olcek
+        else:
+            return
+
+        x0, x1 = ax.get_xlim()
+        y0, y1 = ax.get_ylim()
+        # İmlecin görünüm içindeki oransal konumu zoom sonrası korunur
+        rel_x = (event.xdata - x0) / (x1 - x0)
+        rel_y = (event.ydata - y0) / (y1 - y0)
+
+        yeni_g = (x1 - x0) * faktor
+        yeni_y = (y1 - y0) * faktor
+        ax.set_xlim(event.xdata - rel_x * yeni_g, event.xdata + (1 - rel_x) * yeni_g)
+        ax.set_ylim(event.ydata - rel_y * yeni_y, event.ydata + (1 - rel_y) * yeni_y)
+        self.canvas.draw_idle()
+
+    def _pan_basla(self, event) -> None:
+        """Sol tık basıldığında pan'i başlat — imleç altındaki noktayı çapa olarak sakla."""
+        if event.button != 1 or event.inaxes is None:
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+        self._pan_anchor = (event.xdata, event.ydata)
+        self._pan_ax = event.inaxes
+        # Görsel geri bildirim — imleç "el sürükleme" şekline döner
+        try:
+            self.canvas.get_tk_widget().configure(cursor="fleur")
+        except tk.TclError:
+            pass
+
+    def _pan_hareket(self, event) -> None:
+        """Sol tık basılıyken görünümü çapa noktası imleç altında kalacak şekilde kaydır."""
+        if self._pan_anchor is None or self._pan_ax is None:
+            return
+        if event.inaxes is not self._pan_ax or event.xdata is None or event.ydata is None:
+            return
+        # Çapa data uzayında sabit; her motion'da aynı noktanın imleç altında kalması için kaydır
+        dx = self._pan_anchor[0] - event.xdata
+        dy = self._pan_anchor[1] - event.ydata
+        x0, x1 = self._pan_ax.get_xlim()
+        y0, y1 = self._pan_ax.get_ylim()
+        self._pan_ax.set_xlim(x0 + dx, x1 + dx)
+        self._pan_ax.set_ylim(y0 + dy, y1 + dy)
+        self.canvas.draw_idle()
+
+    def _pan_bitir(self, event) -> None:
+        """Sol tık bırakıldığında pan'i sonlandır."""
+        if event.button != 1:
+            return
+        self._pan_anchor = None
+        self._pan_ax = None
+        try:
+            self.canvas.get_tk_widget().configure(cursor="")
+        except tk.TclError:
+            pass
+
+    # ------------------------------------------------------------------ #
     # Graf Modu
     # ------------------------------------------------------------------ #
 
@@ -461,17 +631,23 @@ class AyCicegiGUI:
     # ------------------------------------------------------------------ #
 
     def _komsuluk_matrisi_goster(self) -> None:
-        """İlk 6×6 komşuluk matrisini ayrı bir Toplevel pencerede gösterir."""
+        """İlk 6×7 komşuluk matrisini ayrı bir Toplevel pencerede gösterir.
+
+        Sütun bir fazla (v₀..v₆) tutuluyor — böylece son satırın (v₅) çıkış kenarı
+        v₅ → v₆ matriste görünür. Aksi halde v₅'in kendine ait satırı boş gibi durur.
+        """
         # Graf yoksa anlık olarak hazırla — kullanıcı henüz Çiz'e basmamış olabilir
         if self.G is None or self.G.number_of_nodes() < 1:
             n_now = int(self.n_var.get())
             self.fib = fibonacci_dizisi(n_now + 1)
             self.G = grafi_olustur(n_now)
 
-        boyut = min(6, self.G.number_of_nodes())
+        n_total = self.G.number_of_nodes()
+        satir_sayisi = min(6, n_total)
+        sutun_sayisi = min(7, n_total)  # bir fazla → v₅ → v₆ çıkış kenarı görünür
 
         pencere = tk.Toplevel(self.root)
-        pencere.title("Komşuluk Matrisi A (6×6)")
+        pencere.title(f"Komşuluk Matrisi A ({satir_sayisi}×{sutun_sayisi})")
         pencere.configure(bg=PANEL_BG)
         pencere.resizable(False, False)
 
@@ -480,18 +656,18 @@ class AyCicegiGUI:
             pencere,
             text="Aᵢⱼ = w(vᵢ, vⱼ) eğer (vᵢ, vⱼ) ∈ E, aksi halde 0",
             style="Panel.TLabel",
-        ).grid(row=0, column=0, columnspan=boyut + 1, padx=10, pady=(10, 8), sticky="w")
+        ).grid(row=0, column=0, columnspan=sutun_sayisi + 1, padx=10, pady=(10, 8), sticky="w")
 
         # Tablo çerçevesi
         tablo = ttk.Frame(pencere, style="Panel.TFrame", padding=4)
-        tablo.grid(row=1, column=0, columnspan=boyut + 1, padx=10, pady=(0, 10))
+        tablo.grid(row=1, column=0, columnspan=sutun_sayisi + 1, padx=10, pady=(0, 10))
 
         hucre_genisligi = 10  # karakter
-        # Başlık satırı: "A" + v₀..vₙ
+        # Başlık satırı: "A" + v₀..v₆
         ttk.Label(
             tablo, text="A", style="Baslik.TLabel", width=hucre_genisligi, anchor="center"
         ).grid(row=0, column=0, padx=2, pady=2)
-        for j in range(boyut):
+        for j in range(sutun_sayisi):
             ttk.Label(
                 tablo,
                 text=f"v{_alt_indis(j)}",
@@ -501,7 +677,7 @@ class AyCicegiGUI:
             ).grid(row=0, column=j + 1, padx=2, pady=2)
 
         # Satırlar
-        for i in range(boyut):
+        for i in range(satir_sayisi):
             ttk.Label(
                 tablo,
                 text=f"v{_alt_indis(i)}",
@@ -509,7 +685,7 @@ class AyCicegiGUI:
                 width=hucre_genisligi,
                 anchor="center",
             ).grid(row=i + 1, column=0, padx=2, pady=2)
-            for j in range(boyut):
+            for j in range(sutun_sayisi):
                 if self.G.has_edge(i, j):
                     if i == 0 and j == 1:
                         # F(1)/F(0) tanımsız (0'a bölme) → "—"
@@ -567,6 +743,16 @@ class AyCicegiGUI:
             return
 
         i = kare_no
+        # adim_geri boş sahneye dönerse kare_no = -1 gelir — paneli sıfırla
+        if i < 0:
+            self.bilgi_tohum_no.set("—")
+            self.bilgi_fib.set("—")
+            self.bilgi_oran.set("—")
+            self.bilgi_phi_farki.set("—")
+            self.bilgi_aktif_kenar.set("—")
+            self.bilgi_aktif_agirlik.set("—")
+            return
+
         self.bilgi_tohum_no.set(str(i))
         # F(i) — büyük sayılar bilimsel notasyonla 12 karakteri aşmasın
         if 0 <= i < len(self.fib):
