@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Sanal ortamlar
+.venv/
+venv/
+env/
+ENV/
+
+# Dağıtım / paketleme
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Test / kapsam
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Çalışma notları (proje deliverable'ı değildir)
+promt.md

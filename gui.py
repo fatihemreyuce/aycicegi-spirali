@@ -1,0 +1,618 @@
+"""
+gui.py
+------
+Tkinter tabanlı arayüz.
+
+Düzen:
+    - Sol panel  : n kaydırıcısı (50-2000) + senkron Entry, hız seçimi,
+                   Çiz/Sıfırla butonları, validator giriş kutusu ve sonucu.
+    - Orta panel : matplotlib canvas (ayçiçeği spirali)
+    - Sağ panel  : Canlı bilgi — aktif tohum no, F(i+1)/F(i), |oran-phi|.
+"""
+
+import tkinter as tk
+from tkinter import ttk
+
+import matplotlib
+# Tkinter ile uyumlu backend — pencere açılmadan önce ayarlanmalı
+matplotlib.use("TkAgg")
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
+from fibonacci import fibonacci_dizisi, fibonacci_n, formatla_buyuk_sayi
+from graph_builder import grafi_olustur
+from animator import SpiralAnimator, HIZ_AYARLARI
+from utils import oran_ve_fark, PHI
+from validator import (
+    dogrula_ve_index,
+    en_yakin_iki_fibonacci_indeksli,
+    SONUC_ACCEPT,
+)
+
+
+# Tema renkleri (arka plan ve panel başlıkları için)
+PANEL_BG = "#1b1b1b"
+PANEL_FG = "#f0f0f0"
+ACCENT = "#ffd400"
+ACCEPT_RENGI = "#5cff7a"   # Yeşil — Accept sonucu
+REJECT_RENGI = "#ff7070"   # Kırmızımsı — Reject sonucu
+
+
+def _alt_indis(num: int) -> str:
+    """Tam sayıyı Unicode alt-indis basamaklarına çevirir (örn. 45 → '₄₅')."""
+    tablo = "₀₁₂₃₄₅₆₇₈₉"
+    return "".join(tablo[int(d)] for d in str(abs(num)))
+
+
+class AyCicegiGUI:
+    """
+    Ayçiçeği spirali için ana uygulama penceresi.
+    """
+
+    def __init__(self, root: tk.Tk):
+        self.root = root
+        self.root.title("Ayçiçeği Spirali — Fibonacci & Vogel")
+        self.root.configure(bg=PANEL_BG)
+        self.root.geometry("1200x720")
+
+        # Çekirdek durum değişkenleri
+        self.G = None
+        self.fib = []
+        self.animator: SpiralAnimator | None = None
+        self.vurgu_indexleri: set[int] = set()
+
+        # Tkinter değişkenleri
+        self.n_var = tk.IntVar(value=100)
+        # Entry kutusu için ayrı StringVar — slider ile çift yönlü senkronize edilir
+        self.n_text_var = tk.StringVar(value="100")
+        # Senkronizasyon sırasında trace döngüsünü engelleyen kilit
+        self._n_senk_kilidi = False
+        self.hiz_var = tk.StringVar(value="Normal")
+        self.dogrulanacak_var = tk.StringVar(value="")
+        self.dogrulama_sonuc_var = tk.StringVar(value="")
+        # Reject durumunda "En yakın: F(5)=5, F(6)=8" alt satırı
+        self.dogrulama_alt_var = tk.StringVar(value="")
+        # Reject/Accept sonucuna göre etiket rengi değişir
+        self._dogrulama_label: ttk.Label | None = None
+
+        # Sağ panel canlı bilgi değişkenleri
+        self.bilgi_tohum_no = tk.StringVar(value="—")
+        self.bilgi_fib = tk.StringVar(value="—")
+        self.bilgi_oran = tk.StringVar(value="—")
+        self.bilgi_phi_farki = tk.StringVar(value="—")
+        # Animasyon sırasında dinamik aktif kenar bilgisi
+        self.bilgi_aktif_kenar = tk.StringVar(value="—")
+        self.bilgi_aktif_agirlik = tk.StringVar(value="—")
+
+        # GRAF MODELİ — n ile dinamik |V| ve |E|
+        baslangic_n = int(self.n_var.get())
+        self.graf_v_var = tk.StringVar(value=f"Düğüm sayısı |V|: {baslangic_n}")
+        self.graf_e_var = tk.StringVar(value=f"Kenar sayısı |E|: {max(0, baslangic_n - 1)}")
+
+        # Graf modu durumu ve sağ paneldeki "Graf Bilgisi" değişkenleri
+        self.graf_modu = False
+        self.graf_dugum_var = tk.StringVar(value="Düğüm sayısı: —")
+        self.graf_kenar_var = tk.StringVar(value="Kenar sayısı: —")
+        self.graf_yon_var = tk.StringVar(value="Yön: vᵢ → vᵢ₊₁")
+        self.graf_min_var = tk.StringVar(value="Min ağırlık: —")
+        self.graf_max_var = tk.StringVar(value="Max ağırlık: —")
+        self.graf_avg_var = tk.StringVar(value="Ort ağırlık: —")
+
+        self._stil_ayarla()
+        self._yerlesimi_kur()
+
+        # Açılışta hazır figürü göster
+        self.figure = Figure(figsize=(7, 7), facecolor="#0b3d2e")
+        self.ax = self.figure.add_subplot(111)
+        self.ax.set_facecolor("#0b3d2e")
+        self.ax.set_aspect("equal", adjustable="datalim")
+        self.ax.axis("off")
+
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.orta_panel)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.canvas.draw()
+
+    # ------------------------------------------------------------------ #
+    # Stil ve yerleşim
+    # ------------------------------------------------------------------ #
+
+    def _stil_ayarla(self) -> None:
+        """ttk için tutarlı bir koyu tema kur."""
+        stil = ttk.Style(self.root)
+        try:
+            stil.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        stil.configure("Panel.TFrame", background=PANEL_BG)
+        stil.configure("Panel.TLabel", background=PANEL_BG, foreground=PANEL_FG, font=("Segoe UI", 10))
+        stil.configure("Baslik.TLabel", background=PANEL_BG, foreground=ACCENT, font=("Segoe UI", 12, "bold"))
+        stil.configure("Bilgi.TLabel", background=PANEL_BG, foreground=ACCENT, font=("Consolas", 11, "bold"))
+        # Validator sonuç etiketleri — büyük ve belirgin
+        stil.configure("Sonuc.TLabel", background=PANEL_BG, foreground=ACCEPT_RENGI, font=("Segoe UI", 13, "bold"))
+        stil.configure("SonucAlt.TLabel", background=PANEL_BG, foreground=PANEL_FG, font=("Segoe UI", 10, "italic"))
+        stil.configure("Panel.TButton", font=("Segoe UI", 10, "bold"))
+        stil.configure("Panel.TRadiobutton", background=PANEL_BG, foreground=PANEL_FG, font=("Segoe UI", 9))
+        stil.configure("Panel.Horizontal.TScale", background=PANEL_BG)
+        stil.configure("Panel.TEntry", fieldbackground="#2a2a2a", foreground=PANEL_FG, insertcolor=PANEL_FG)
+
+    def _yerlesimi_kur(self) -> None:
+        """Üç sütunlu ana yerleşimi oluştur: sol kontroller, orta canvas, sağ bilgi."""
+        self.root.columnconfigure(0, weight=0, minsize=240)
+        self.root.columnconfigure(1, weight=1)
+        self.root.columnconfigure(2, weight=0, minsize=240)
+        self.root.rowconfigure(0, weight=1)
+
+        self.sol_panel = ttk.Frame(self.root, style="Panel.TFrame", padding=12)
+        self.sol_panel.grid(row=0, column=0, sticky="nsw")
+
+        self.orta_panel = ttk.Frame(self.root, style="Panel.TFrame", padding=4)
+        self.orta_panel.grid(row=0, column=1, sticky="nsew")
+
+        self.sag_panel = ttk.Frame(self.root, style="Panel.TFrame", padding=12)
+        self.sag_panel.grid(row=0, column=2, sticky="nse")
+
+        self._sol_paneli_kur()
+        self._sag_paneli_kur()
+
+    def _sol_paneli_kur(self) -> None:
+        """Kontroller: kaydırıcı, hız, butonlar, validator."""
+        ttk.Label(self.sol_panel, text="KONTROLLER", style="Baslik.TLabel").pack(anchor="w", pady=(0, 10))
+
+        # n kaydırıcısı
+        ttk.Label(self.sol_panel, text="Tohum sayısı (n)", style="Panel.TLabel").pack(anchor="w")
+
+        self.n_label = ttk.Label(self.sol_panel, text=f"n = {self.n_var.get()}", style="Bilgi.TLabel")
+        self.n_label.pack(anchor="w")
+
+        # Slider ve elle giriş aynı satırda yan yana — çift yönlü senkronize edilir
+        n_satiri = ttk.Frame(self.sol_panel, style="Panel.TFrame")
+        n_satiri.pack(fill="x", pady=(2, 12))
+
+        kaydirici = ttk.Scale(
+            n_satiri,
+            from_=50, to=2000,
+            orient="horizontal",
+            variable=self.n_var,
+            command=self._n_degisti,
+            style="Panel.Horizontal.TScale",
+        )
+        kaydirici.pack(side="left", fill="x", expand=True)
+
+        # Elle sayı girişi (50-2000 aralığında doğrulanır)
+        self.n_entry = ttk.Entry(
+            n_satiri,
+            textvariable=self.n_text_var,
+            width=6,
+            style="Panel.TEntry",
+            justify="center",
+        )
+        self.n_entry.pack(side="right", padx=(6, 0))
+        # Enter veya odak kaybı ile değer onaylansın
+        self.n_entry.bind("<Return>", self._n_entry_onayla)
+        self.n_entry.bind("<FocusOut>", self._n_entry_onayla)
+
+        # Hız seçimi
+        ttk.Label(self.sol_panel, text="Animasyon hızı", style="Panel.TLabel").pack(anchor="w")
+        hiz_cerc = ttk.Frame(self.sol_panel, style="Panel.TFrame")
+        hiz_cerc.pack(anchor="w", pady=(2, 12))
+        for label in HIZ_AYARLARI.keys():
+            ttk.Radiobutton(
+                hiz_cerc,
+                text=label,
+                value=label,
+                variable=self.hiz_var,
+                style="Panel.TRadiobutton",
+            ).pack(anchor="w")
+
+        # Eylem butonları
+        btn_cerc = ttk.Frame(self.sol_panel, style="Panel.TFrame")
+        btn_cerc.pack(fill="x", pady=(0, 16))
+        ttk.Button(btn_cerc, text="Çiz", style="Panel.TButton",
+                   command=self._ciz).pack(fill="x", pady=2)
+        ttk.Button(btn_cerc, text="Sıfırla", style="Panel.TButton",
+                   command=self._sifirla).pack(fill="x", pady=2)
+        # Graf modu toggle butonu — metni mevcut moda göre değişir
+        self.graf_modu_btn = ttk.Button(
+            btn_cerc,
+            text="📊 Graf Modunu Aç",
+            style="Panel.TButton",
+            command=self._graf_modu_degistir,
+        )
+        self.graf_modu_btn.pack(fill="x", pady=2)
+
+        # Validator bölümü
+        ttk.Label(self.sol_panel, text="VALIDATOR", style="Baslik.TLabel").pack(anchor="w", pady=(8, 4))
+        ttk.Label(self.sol_panel, text="Sayı (Fibonacci?):", style="Panel.TLabel").pack(anchor="w")
+        ttk.Entry(self.sol_panel, textvariable=self.dogrulanacak_var, style="Panel.TEntry").pack(fill="x", pady=(2, 4))
+        ttk.Button(self.sol_panel, text="Doğrula", style="Panel.TButton",
+                   command=self._dogrula).pack(fill="x")
+        # Sonuç satırı (büyük, renkli) — _dogrula ile rengi güncellenir
+        self._dogrulama_label = ttk.Label(
+            self.sol_panel, textvariable=self.dogrulama_sonuc_var,
+            style="Sonuc.TLabel", wraplength=220, justify="left",
+        )
+        self._dogrulama_label.pack(anchor="w", pady=(8, 0))
+        # Reject durumunda en yakın iki Fibonacci'yi gösteren alt satır
+        ttk.Label(
+            self.sol_panel, textvariable=self.dogrulama_alt_var,
+            style="SonucAlt.TLabel", wraplength=220, justify="left",
+        ).pack(anchor="w", pady=(2, 0))
+
+    def _sag_paneli_kur(self) -> None:
+        """Canlı bilgi paneli."""
+        ttk.Label(self.sag_panel, text="CANLI BİLGİ", style="Baslik.TLabel").pack(anchor="w", pady=(0, 10))
+
+        def _ikili(label_text: str, degisken: tk.StringVar):
+            ttk.Label(self.sag_panel, text=label_text, style="Panel.TLabel").pack(anchor="w", pady=(8, 0))
+            ttk.Label(self.sag_panel, textvariable=degisken, style="Bilgi.TLabel").pack(anchor="w")
+
+        _ikili("Tohum no (i):", self.bilgi_tohum_no)
+        _ikili("F(i):", self.bilgi_fib)
+        _ikili("F(i+1) / F(i):", self.bilgi_oran)
+        _ikili("|oran - phi|:", self.bilgi_phi_farki)
+        # Animasyon esnasında dinamik aktif kenar bilgisi
+        _ikili("Aktif kenar:", self.bilgi_aktif_kenar)
+        _ikili("Ağırlık:", self.bilgi_aktif_agirlik)
+
+        # GRAF MODELİ — formal tanım, |V|, |E|, kenar yön/ağırlık formülü
+        ttk.Label(self.sag_panel, text="GRAF MODELİ", style="Baslik.TLabel").pack(anchor="w", pady=(18, 4))
+        ttk.Label(self.sag_panel, text="Graf: G = (V, E, f, w)", style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, textvariable=self.graf_v_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, textvariable=self.graf_e_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text="Kenar yönü: vᵢ → vᵢ₊₁", style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text="Kenar ağırlığı: F(i+1)/F(i)", style="Panel.TLabel").pack(anchor="w")
+        ttk.Button(
+            self.sag_panel,
+            text="Komşuluk Matrisi",
+            style="Panel.TButton",
+            command=self._komsuluk_matrisi_goster,
+        ).pack(fill="x", pady=(6, 0))
+
+        # Sabit referans değerler
+        ttk.Label(self.sag_panel, text="REFERANSLAR", style="Baslik.TLabel").pack(anchor="w", pady=(18, 4))
+        ttk.Label(self.sag_panel, text=f"phi = {PHI:.10f}", style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.sag_panel, text="Altın açı = 137.5077°", style="Panel.TLabel").pack(anchor="w")
+
+        # Graf Bilgisi alt paneli — graf modu açıldığında pack ile görünür kılınır
+        self.graf_bilgisi_frame = ttk.Frame(self.sag_panel, style="Panel.TFrame")
+        ttk.Label(self.graf_bilgisi_frame, text="Graf Bilgisi:", style="Baslik.TLabel").pack(anchor="w", pady=(0, 4))
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_dugum_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_kenar_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_yon_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_min_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_max_var, style="Panel.TLabel").pack(anchor="w")
+        ttk.Label(self.graf_bilgisi_frame, textvariable=self.graf_avg_var, style="Panel.TLabel").pack(anchor="w")
+        # Başlangıçta gizli — toggle ile pack edilir
+
+    # ------------------------------------------------------------------ #
+    # Olay yöneticileri
+    # ------------------------------------------------------------------ #
+
+    def _n_degisti(self, _=None) -> None:
+        """Kaydırıcıdan gelen değeri tam sayıya yuvarlayıp etiketi ve Entry'yi güncelle."""
+        if self._n_senk_kilidi:
+            return
+        n = int(round(float(self.n_var.get())))
+        self._n_senk_kilidi = True
+        try:
+            self.n_var.set(n)
+            self.n_label.configure(text=f"n = {n}")
+            # Entry kutusuyla çift yönlü senkronizasyon
+            if self.n_text_var.get() != str(n):
+                self.n_text_var.set(str(n))
+            # GRAF MODELİ etiketleri n ile dinamik
+            self._vE_etiketlerini_guncelle(n)
+        finally:
+            self._n_senk_kilidi = False
+
+    def _n_entry_onayla(self, _=None) -> None:
+        """Entry'ye yazılan değeri 50-2000 aralığında doğrulayıp slider'a yansıt."""
+        if self._n_senk_kilidi:
+            return
+        ham = self.n_text_var.get().strip()
+        try:
+            n = int(ham)
+        except ValueError:
+            # Geçersiz girişte slider değerini geri yaz
+            self.n_text_var.set(str(int(self.n_var.get())))
+            return
+        # Aralığa kelepçele
+        n = max(50, min(2000, n))
+        self._n_senk_kilidi = True
+        try:
+            self.n_var.set(n)
+            self.n_text_var.set(str(n))
+            self.n_label.configure(text=f"n = {n}")
+            self._vE_etiketlerini_guncelle(n)
+        finally:
+            self._n_senk_kilidi = False
+
+    def _vE_etiketlerini_guncelle(self, n: int) -> None:
+        """GRAF MODELİ panelindeki |V| ve |E| etiketlerini günceller."""
+        self.graf_v_var.set(f"Düğüm sayısı |V|: {n}")
+        self.graf_e_var.set(f"Kenar sayısı |E|: {max(0, n - 1)}")
+
+    def _ciz(self) -> None:
+        """Mevcut n ve hız ayarlarına göre grafı yeniden inşa edip animasyonu başlat."""
+        # Önceki animasyonu temizle
+        if self.animator is not None:
+            self.animator.durdur()
+
+        n = int(self.n_var.get())
+        # Bir fazla eleman tutalım — son tohumda da F(i+1)/F(i) hesaplanabilsin
+        self.fib = fibonacci_dizisi(n + 1)
+        self.G = grafi_olustur(n)
+
+        # Eski figürü temizle ve animatöre teslim et (graf modu animatöre iletilir)
+        self.figure.clear()
+        self.ax = self.figure.add_subplot(111)
+        self.animator = SpiralAnimator(
+            self.G,
+            ax=self.ax,
+            vurgu_indexleri=self.vurgu_indexleri,
+            graf_modu=self.graf_modu,
+        )
+
+        interval = HIZ_AYARLARI.get(self.hiz_var.get(), 200)
+        self.animator.basla(interval_ms=interval, on_step=self._adim_bilgisini_guncelle)
+        self.canvas.draw_idle()
+
+        # Graf modu açıksa sağ paneldeki istatistikleri yenile
+        if self.graf_modu:
+            self._graf_bilgisini_guncelle()
+
+    def _sifirla(self) -> None:
+        """Sahneyi temizle, bilgi panelini sıfırla."""
+        if self.animator is not None:
+            self.animator.temizle()
+        self.vurgu_indexleri.clear()
+        self.dogrulama_sonuc_var.set("")
+        self.dogrulama_alt_var.set("")
+        self.bilgi_tohum_no.set("—")
+        self.bilgi_fib.set("—")
+        self.bilgi_oran.set("—")
+        self.bilgi_phi_farki.set("—")
+        self.bilgi_aktif_kenar.set("—")
+        self.bilgi_aktif_agirlik.set("—")
+        self.canvas.draw_idle()
+
+    def _dogrula(self) -> None:
+        """Validator giriş kutusunu işle ve eşleşen tohumu mavi vurgula."""
+        ham = self.dogrulanacak_var.get().strip()
+        if not ham:
+            self._sonucu_yaz("Lütfen bir sayı girin.", "", PANEL_FG)
+            return
+        try:
+            sayi = int(ham)
+        except ValueError:
+            self._sonucu_yaz("Geçersiz sayı.", "", PANEL_FG)
+            return
+
+        n = int(self.n_var.get())
+        # Mevcut grafımız yoksa önce hazırla (bir fazla eleman tutuyoruz)
+        if not self.fib:
+            self.fib = fibonacci_dizisi(n + 1)
+            self.G = grafi_olustur(n)
+
+        # Yalnızca grafa karşılık gelen ilk n elemanda ara
+        graf_dizi = self.fib[:n]
+        sonuc, idx = dogrula_ve_index(sayi, graf_dizi)
+        if sonuc == SONUC_ACCEPT and idx is not None:
+            self.vurgu_indexleri.add(idx)
+            f_val = graf_dizi[idx]
+            # ✅ Accept: v₈ düğümü (F=21)
+            ana_metin = f"✅ Accept: v{_alt_indis(idx)} düğümü (F={f_val})"
+            self._sonucu_yaz(ana_metin, "", ACCEPT_RENGI)
+            # Animatör çalışıyorsa renkleri güncel tut
+            if self.animator is not None:
+                self.animator.vurgu_kumesi = set(self.vurgu_indexleri)
+                # Halihazırda görünen sahnede vurguyu hemen yansıt
+                self.animator._kareyi_guncelle(self.animator.toplam - 1)
+                self.canvas.draw_idle()
+        else:
+            # Reject — en yakın iki Fibonacci'yi indeksleriyle birlikte göster
+            (alt_idx, alt_val), (ust_idx, ust_val) = en_yakin_iki_fibonacci_indeksli(
+                sayi, graf_dizi
+            )
+            ana_metin = f"❌ Reject: {sayi} Fibonacci değil"
+            yakin_parcalar = []
+            if alt_idx is not None and alt_val is not None:
+                yakin_parcalar.append(f"F({alt_idx})={alt_val}")
+            if ust_idx is not None and ust_val is not None:
+                yakin_parcalar.append(f"F({ust_idx})={ust_val}")
+            alt_metin = "En yakın: " + ", ".join(yakin_parcalar) if yakin_parcalar else ""
+            self._sonucu_yaz(ana_metin, alt_metin, REJECT_RENGI)
+
+    def _sonucu_yaz(self, ana: str, alt: str, renk: str) -> None:
+        """Validator sonuç ana satırı + alt satırı yazar; ana satır rengini ayarlar."""
+        self.dogrulama_sonuc_var.set(ana)
+        self.dogrulama_alt_var.set(alt)
+        if self._dogrulama_label is not None:
+            try:
+                self._dogrulama_label.configure(foreground=renk)
+            except tk.TclError:
+                pass
+
+    # ------------------------------------------------------------------ #
+    # Graf Modu
+    # ------------------------------------------------------------------ #
+
+    def _graf_modu_degistir(self) -> None:
+        """Graf modunu açıp kapar — n değerine dokunmaz; sahneyi mevcut n ile yeniden çizer."""
+        # Modu tersine çevir
+        self.graf_modu = not self.graf_modu
+
+        if self.graf_modu:
+            # Açıldı: butonu güncelle ve "Graf Bilgisi" alt panelini görünür kıl
+            self.graf_modu_btn.configure(text="🌻 Normal Moda Dön")
+            self.graf_bilgisi_frame.pack(fill="x", pady=(20, 0), anchor="w")
+        else:
+            # Kapatıldı: butonu eski metnine getir, alt paneli gizle
+            self.graf_modu_btn.configure(text="📊 Graf Modunu Aç")
+            self.graf_bilgisi_frame.pack_forget()
+
+        # Yeni mod altında sahneyi yeniden çiz (mevcut n korunur)
+        self._ciz()
+
+    # ------------------------------------------------------------------ #
+    # Komşuluk Matrisi
+    # ------------------------------------------------------------------ #
+
+    def _komsuluk_matrisi_goster(self) -> None:
+        """İlk 6×6 komşuluk matrisini ayrı bir Toplevel pencerede gösterir."""
+        # Graf yoksa anlık olarak hazırla — kullanıcı henüz Çiz'e basmamış olabilir
+        if self.G is None or self.G.number_of_nodes() < 1:
+            n_now = int(self.n_var.get())
+            self.fib = fibonacci_dizisi(n_now + 1)
+            self.G = grafi_olustur(n_now)
+
+        boyut = min(6, self.G.number_of_nodes())
+
+        pencere = tk.Toplevel(self.root)
+        pencere.title("Komşuluk Matrisi A (6×6)")
+        pencere.configure(bg=PANEL_BG)
+        pencere.resizable(False, False)
+
+        # Açıklama satırı
+        ttk.Label(
+            pencere,
+            text="Aᵢⱼ = w(vᵢ, vⱼ) eğer (vᵢ, vⱼ) ∈ E, aksi halde 0",
+            style="Panel.TLabel",
+        ).grid(row=0, column=0, columnspan=boyut + 1, padx=10, pady=(10, 8), sticky="w")
+
+        # Tablo çerçevesi
+        tablo = ttk.Frame(pencere, style="Panel.TFrame", padding=4)
+        tablo.grid(row=1, column=0, columnspan=boyut + 1, padx=10, pady=(0, 10))
+
+        hucre_genisligi = 10  # karakter
+        # Başlık satırı: "A" + v₀..vₙ
+        ttk.Label(
+            tablo, text="A", style="Baslik.TLabel", width=hucre_genisligi, anchor="center"
+        ).grid(row=0, column=0, padx=2, pady=2)
+        for j in range(boyut):
+            ttk.Label(
+                tablo,
+                text=f"v{_alt_indis(j)}",
+                style="Baslik.TLabel",
+                width=hucre_genisligi,
+                anchor="center",
+            ).grid(row=0, column=j + 1, padx=2, pady=2)
+
+        # Satırlar
+        for i in range(boyut):
+            ttk.Label(
+                tablo,
+                text=f"v{_alt_indis(i)}",
+                style="Baslik.TLabel",
+                width=hucre_genisligi,
+                anchor="center",
+            ).grid(row=i + 1, column=0, padx=2, pady=2)
+            for j in range(boyut):
+                if self.G.has_edge(i, j):
+                    if i == 0 and j == 1:
+                        # F(1)/F(0) tanımsız (0'a bölme) → "—"
+                        metin = "—"
+                    else:
+                        w = float(self.G[i][j].get("agirlik", 0.0))
+                        metin = f"{w:.4f}"
+                else:
+                    metin = "0"
+                ttk.Label(
+                    tablo,
+                    text=metin,
+                    style="Bilgi.TLabel",
+                    width=hucre_genisligi,
+                    anchor="center",
+                ).grid(row=i + 1, column=j + 1, padx=2, pady=2)
+
+    def _graf_bilgisini_guncelle(self) -> None:
+        """Sağ paneldeki Graf Bilgisi etiketlerini grafın istatistikleriyle doldurur."""
+        if self.G is None:
+            return
+        n = self.G.number_of_nodes()
+        e = self.G.number_of_edges()
+
+        # Ağırlıkları topla; F(0)=0 sentinel'i (0.0) istatistiklere katma
+        agirliklar = [
+            float(d.get("agirlik", 0.0))
+            for _, _, d in self.G.edges(data=True)
+            if float(d.get("agirlik", 0.0)) > 0
+        ]
+
+        if agirliklar:
+            mn = min(agirliklar)
+            mx = max(agirliklar)
+            ort = sum(agirliklar) / len(agirliklar)
+            self.graf_min_var.set(f"Min ağırlık: {mn:.3f}")
+            self.graf_max_var.set(f"Max ağırlık: {mx:.3f}")
+            self.graf_avg_var.set(f"Ort ağırlık: {ort:.3f}")
+        else:
+            self.graf_min_var.set("Min ağırlık: —")
+            self.graf_max_var.set("Max ağırlık: —")
+            self.graf_avg_var.set("Ort ağırlık: —")
+
+        self.graf_dugum_var.set(f"Düğüm sayısı: {n}")
+        self.graf_kenar_var.set(f"Kenar sayısı: {e}")
+        self.graf_yon_var.set("Yön: vᵢ → vᵢ₊₁")
+
+    # ------------------------------------------------------------------ #
+    # Animator → GUI geri çağırma
+    # ------------------------------------------------------------------ #
+
+    def _adim_bilgisini_guncelle(self, kare_no: int) -> None:
+        """SpiralAnimator her adımda bu fonksiyonu çağırır."""
+        if not self.fib:
+            return
+
+        i = kare_no
+        self.bilgi_tohum_no.set(str(i))
+        # F(i) — büyük sayılar bilimsel notasyonla 12 karakteri aşmasın
+        if 0 <= i < len(self.fib):
+            self.bilgi_fib.set(formatla_buyuk_sayi(self.fib[i]))
+        else:
+            self.bilgi_fib.set("—")
+
+        # F(i+1)/F(i) — i = 0 olduğunda F(0)=0 olduğu için bölme yapılmaz.
+        # i >= 1 için her karede güncelle; gerekirse F(i+1)'i anlık hesapla.
+        if i >= 1:
+            f_i = self.fib[i] if i < len(self.fib) else None
+            if (i + 1) < len(self.fib):
+                f_iplus1 = self.fib[i + 1]
+            else:
+                # Son tohumda dizide bir sonraki yoksa anlık üret
+                f_iplus1 = fibonacci_n(i + 1)
+            if f_i is not None and f_i != 0:
+                oran, fark = oran_ve_fark(f_i, f_iplus1)
+                self.bilgi_oran.set(f"{oran:.10f}")
+                self.bilgi_phi_farki.set(f"{fark:.2e}")
+            else:
+                self.bilgi_oran.set("—")
+                self.bilgi_phi_farki.set("—")
+        else:
+            # i = 0 için bölme tanımsız — kullanıcıya net bir gösterge ver
+            self.bilgi_oran.set("—")
+            self.bilgi_phi_farki.set("—")
+
+        # Aktif kenar = (i-1) → i  (i. tohum yerleştiğinde tamamlanan kenar)
+        if i >= 1 and self.G is not None and self.G.has_edge(i - 1, i):
+            kenar_metni = f"v{_alt_indis(i - 1)} → v{_alt_indis(i)}"
+            w = float(self.G[i - 1][i].get("agirlik", 0.0))
+            agirlik_metni = "—" if w == 0.0 else f"{w:.4f}"
+            self.bilgi_aktif_kenar.set(kenar_metni)
+            self.bilgi_aktif_agirlik.set(agirlik_metni)
+        else:
+            self.bilgi_aktif_kenar.set("—")
+            self.bilgi_aktif_agirlik.set("—")
+
+
+def uygulamayi_baslat() -> None:
+    """Tkinter ana döngüsünü başlatan kolay erişim fonksiyonu."""
+    root = tk.Tk()
+    AyCicegiGUI(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    uygulamayi_baslat()
