@@ -99,20 +99,38 @@ Burada `c` ölçek sabiti (projemizde `c = 4`), `α` altın açıdır. Yarıçap
 
 ## 📁 Proje Yapısı
 
-Proje **9 ayrı modül** halinde, sorumlulukları net ayrılmış biçimde organize edilmiştir:
+Proje **çekirdek + analiz pencereleri + testler** olarak üç katmanda organize edilmiştir:
+
+### 🧩 Çekirdek modüller
 
 | 📄 Dosya | 🎯 Sorumluluk |
 |---|---|
 | `fibonacci.py` | İteratif Fibonacci dizisi üretimi, tek değer hesabı, büyük sayı bilimsel notasyon biçimleyici |
 | `utils.py` | Altın oran/açı sabitleri, ardışık oran, \|oran−φ\| farkı, Öklid mesafesi |
-| `positioning.py` | Vogel formülünü uygulayıp tohum koordinatlarını üretir (`c=4` ölçek) |
+| `positioning.py` | Vogel formülünü uygulayıp tohum koordinatlarını üretir (`c=4` ölçek, açı parametrik) |
 | `graph_builder.py` | NetworkX `DiGraph` inşası — düğüm öznitelikleri ve `agirlik = F(i+1)/F(i)` kenarları |
 | `validator.py` | Bir sayının Fibonacci olup olmadığını test eder (matematiksel + dizide arama), en yakın iki Fibonacci'yi bulur |
 | `visualizer.py` | matplotlib ile statik spiral çizimi (koyu yeşil arka plan, sarı tohumlar) |
-| `animator.py` | `FuncAnimation` ile tohum-tohum yerleştirme; aktif/ziyaret/bekleme renk durumları |
-| `gui.py` | tkinter arayüzü: kontroller, canvas, canlı bilgi paneli |
+| `animator.py` | `FuncAnimation` ile tohum-tohum yerleştirme; aktif/ziyaret/bekleme/seçili renk durumları |
+| `graph_traversal.py` | BFS / DFS gezinti algoritmaları — undirected üzerinde, kararlı sıralama |
+| `gui.py` | tkinter arayüzü: kontroller, canvas, canlı bilgi paneli, tohum tıklama |
 | `main.py` | Tüm modülleri birleştiren giriş noktası |
-| `requirements.txt` | Bağımlılık listesi |
+
+### 🪟 Analiz pencereleri (Toplevel)
+
+| 📄 Dosya | 🎯 Sorumluluk |
+|---|---|
+| `convergence_plot.py` | F(i+1)/F(i) → φ yakınsama grafiği — log skala alt grafik ile |
+| `comparison_window.py` | İki açıyı yan yana karşılaştırma (137.5° vs 90° vb. presetler) |
+| `traversal_window.py` | BFS/DFS animasyonu — Spiral ve Delaunay graf seçenekli |
+| `dijkstra_window.py` | Kaynak/hedef arası en kısa yol — yol kenarları kırmızı çizgi |
+
+### 🧪 Testler ve yapılandırma
+
+| 📄 Dosya | 🎯 Sorumluluk |
+|---|---|
+| `tests/` | 45 unittest — fibonacci, validator, positioning, utils, graph_builder, graph_traversal |
+| `requirements.txt` | Bağımlılık listesi (versiyon aralıkları sabitlenmiş) |
 
 ---
 
@@ -131,14 +149,18 @@ Yoksa: <https://www.python.org/downloads/> adresinden indirin.
 
 ### 📦 2. Bağımlılıkların Kurulumu
 
-```bash
-pip install matplotlib networkx numpy pillow
-```
-
-ya da `requirements.txt` üzerinden:
+`requirements.txt` üzerinden:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Veya tek satırda — **çekirdek bağımlılıklar** zorunlu, `scipy` ile `pytest` opsiyoneldir:
+
+```bash
+pip install matplotlib networkx numpy           # zorunlu
+pip install scipy                                # opsiyonel: BFS/DFS & Dijkstra'da Delaunay graf seçeneği
+pip install pytest                               # opsiyonel: pytest çalıştırmak isteyenler için
 ```
 
 > 💡 `tkinter` Windows ve macOS için Python ile birlikte gelir. Linux'ta gerekirse: `sudo apt install python3-tk`.
@@ -150,6 +172,17 @@ python main.py
 ```
 
 GUI penceresi açılınca **Çiz** butonuna basarak spirali izleyebilirsiniz.
+
+### 🧪 4. Testler (opsiyonel)
+
+Birim testler hem `unittest` hem `pytest` ile çalışır:
+
+```bash
+python -m unittest discover -s tests       # Python ile birlikte gelir, ek kurulum yok
+pytest                                      # pytest yüklüyse — daha okunaklı çıktı
+```
+
+> Beklenen çıktı: **45 test, hepsi yeşil**.
 
 ---
 
@@ -165,17 +198,17 @@ GUI penceresi açılınca **Çiz** butonuna basarak spirali izleyebilirsiniz.
 | 100–300 | Olgun ayçiçeği — 21 ↔ 34 / 34 ↔ 55 |
 | 500+ | Yoğun, gerçekçi ayçiçeği başı |
 
-### 🔄 Açı (Altın Açı: 137.5077°)
+### 🔄 Açı Kaydırıcısı (30°–180°)
 
-Spiralin sırrı **tek bir sayıda**: altın açı. Mevcut sürümde değer **sabit** tutulmuştur (`utils.ALTIN_ACI_DERECE = 137.5077640500378`) çünkü bu açıdan **en ufak sapma bile** spiraldeki sıkı paketlemeyi bozar:
+Spiralin sırrı **tek bir sayıda**: altın açı. Sol panelde **canlı bir açı slider'ı** vardır — kaydırıcıyla veya yanındaki Entry kutusuyla 30°–180° arasında istediğiniz değeri girebilir, **🌟 Altın açıya dön** butonuyla varsayılana hızlıca dönebilirsiniz.
 
 | Açı | Sonuç |
 |---|---|
-| 137.5° (irrasyonel) | ✅ Optimum spiral, çakışma yok |
+| **137.5077°** (irrasyonel) | ✅ Optimum spiral, çakışma yok |
 | 137.0° / 138.0° | ❌ Gözle görülür "boşluklar" oluşur |
 | 90° / 60° / 45° | ❌ Hizalı ışınlar, spiral kaybolur |
 
-> 💡 Açının önemini denemek için `utils.py` içindeki `ALTIN_ACI_DERECE` değerini geçici olarak değiştirip yeniden çalıştırabilirsiniz.
+> 💡 Açının önemini somut olarak görmek için **⚖️ Açı Karşılaştırma** penceresini açın — iki açıyı yan yana çizip farkı doğrudan kıyaslayabilirsiniz.
 
 ### 🔎 Validator
 
@@ -197,6 +230,30 @@ Sol paneldeki **Validator** kutusuna bir tam sayı girip **Doğrula**'ya basın:
 | 🚶 **Normal** | 200 ms / kare |
 | 🏃 **Hızlı** | 50 ms / kare |
 | ⚡ **Anında** | Tüm tohumları tek karede çiz |
+
+### 🖱️ Etkileşim
+
+| Eylem | Sonuç |
+|---|---|
+| **Mouse scroll / iki-parmak scroll** | İmleç-merkezli yakınlaştırma / uzaklaştırma |
+| **Sol-tık + sürükle (boş alan)** | Pan — görünümü kaydır |
+| **Sol-tık (tohum üstüne)** | Tohumu **mor** ile seç → sağ panelde i, F(i), açı (i·α mod 360°), yarıçap, konum |
+| **Aynı tohuma tekrar tık** | Seçimi kaldırır (toggle) |
+| **◀ Geri / ▶ Adım** | Manuel adım — animasyondan bağımsız tek tek ilerle/geri al |
+
+### 🪟 Analiz Pencereleri
+
+Sağ paneldeki butonlardan açılır — her biri ayrı bir pencerede çalışır:
+
+| Buton | Pencere |
+|---|---|
+| 📈 **Yakınsama Grafiği** | F(i+1)/F(i) → φ — üstte oran/φ kıyaslaması, altta \|fark\| log skala |
+| ⚖️ **Açı Karşılaştırma** | İki spirali yan yana çiz — preset butonlar: 137.5° vs 90° / 137.0° / 60° |
+| 🔍 **BFS / DFS Gezintisi** | Kök seçimli BFS veya DFS animasyonu — Spiral veya Delaunay (scipy) |
+| 🛣️ **En Kısa Yol (Dijkstra)** | Kaynak → hedef en kısa yol; toplam ağırlık ekranda |
+| **Komşuluk Matrisi** | Boyut ayarlanabilir (2–50), yatay/dikey scrollbar — Aᵢⱼ = w(vᵢ,vⱼ) |
+
+> 💡 BFS/DFS ve Dijkstra pencerelerinde **Delaunay graf** seçeneği `scipy` gerektirir. Spiral grafı doğrusal yol olduğu için BFS = DFS, ama Delaunay komşuluk grafında BFS dalga dalga, DFS spiral kolu boyunca ilerler — **en eğitsel kıyaslama** budur.
 
 ---
 
@@ -254,6 +311,9 @@ Ayçiçeğindeki **görünür spiral kollar** (saat yönünde ve tersi) her zama
 | Animasyon (yeniden çizim) | **O(n²)** | Her karede biriken tohumlar yeniden boyanır |
 | Validator (Fibonacci testi) | **O(log n)** | `5x²±4` tam kare testi (`isqrt`) |
 | En yakın iki Fibonacci | **O(n)** | Sıralı dizide tek taramayla |
+| BFS / DFS gezintisi | **O(\|V\| + \|E\|)** | Komşuluk listesi üzerinden, undirected |
+| Dijkstra en kısa yol | **O((\|V\| + \|E\|) log \|V\|)** | NetworkX heap tabanlı implementasyon |
+| Delaunay üçgenlemesi | **O(n log n)** | scipy ile (BFS/DFS & Dijkstra'nın opsiyonel modu) |
 
 ---
 
