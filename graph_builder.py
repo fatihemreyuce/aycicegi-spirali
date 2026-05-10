@@ -19,16 +19,21 @@ import networkx as nx
 
 from fibonacci import fibonacci_dizisi
 from positioning import tum_konumlar, OLCEK_C
-from utils import ardisik_oran
+from utils import ardisik_oran, ALTIN_ACI_RADYAN
 
 
-def grafi_olustur(n: int, c: float = OLCEK_C) -> nx.DiGraph:
+def grafi_olustur(
+    n: int,
+    c: float = OLCEK_C,
+    aci_radyan: float = ALTIN_ACI_RADYAN,
+) -> nx.DiGraph:
     """
     n tohum için yönlü Fibonacci/Vogel grafını üretir.
 
     Parametreler:
         n (int): Tohum sayısı.
         c (float): Spiral ölçek sabiti.
+        aci_radyan (float): Kutupsal açı (varsayılan altın açı).
 
     Döndürür:
         networkx.DiGraph: Düğüm ve kenar öznitelikleriyle dolu graf.
@@ -38,7 +43,7 @@ def grafi_olustur(n: int, c: float = OLCEK_C) -> nx.DiGraph:
 
     # Önce gerekli tüm dizileri ve konumları hazırla
     fib: List[int] = fibonacci_dizisi(n)
-    konumlar: List[Tuple[float, float]] = tum_konumlar(n, c)
+    konumlar: List[Tuple[float, float]] = tum_konumlar(n, c, aci_radyan)
 
     G: nx.DiGraph = nx.DiGraph()
 

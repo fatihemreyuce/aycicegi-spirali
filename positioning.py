@@ -19,13 +19,18 @@ from utils import ALTIN_ACI_RADYAN
 OLCEK_C: float = 4.0
 
 
-def tohum_konumu(i: int, c: float = OLCEK_C) -> Tuple[float, float]:
+def tohum_konumu(
+    i: int,
+    c: float = OLCEK_C,
+    aci_radyan: float = ALTIN_ACI_RADYAN,
+) -> Tuple[float, float]:
     """
     i numaralı tohum için (x, y) koordinatını üretir.
 
     Parametreler:
         i (int): Tohum indeksi (>= 0).
         c (float): Ölçek sabiti (varsayılan 4).
+        aci_radyan (float): İki tohum arası kutupsal açı (varsayılan altın açı).
 
     Döndürür:
         (x, y) demeti.
@@ -35,21 +40,26 @@ def tohum_konumu(i: int, c: float = OLCEK_C) -> Tuple[float, float]:
 
     # Yarıçap, indeksin kareköküyle orantılıdır → tohumlar dışa doğru seyrelmez
     yaricap = c * math.sqrt(i)
-    # Açı, altın açının indeks katıdır → her tohum bir önceki tohumdan ~137.5° döner
-    aci = i * ALTIN_ACI_RADYAN
+    # Açı, seçilen açının indeks katıdır → her tohum bir önceki tohumdan açı kadar döner
+    aci = i * aci_radyan
 
     x = yaricap * math.cos(aci)
     y = yaricap * math.sin(aci)
     return x, y
 
 
-def tum_konumlar(n: int, c: float = OLCEK_C) -> List[Tuple[float, float]]:
+def tum_konumlar(
+    n: int,
+    c: float = OLCEK_C,
+    aci_radyan: float = ALTIN_ACI_RADYAN,
+) -> List[Tuple[float, float]]:
     """
     İlk n tohumun konum listesini döndürür.
 
     Parametreler:
         n (int): Üretilecek tohum sayısı.
         c (float): Ölçek sabiti.
+        aci_radyan (float): Kutupsal açı (varsayılan altın açı).
 
     Döndürür:
         [(x0, y0), (x1, y1), ...] biçiminde liste.
@@ -58,7 +68,7 @@ def tum_konumlar(n: int, c: float = OLCEK_C) -> List[Tuple[float, float]]:
         raise ValueError("n negatif olamaz")
 
     # Listeyi tek seferde üret — döngüde liste büyütmek hızlıdır
-    return [tohum_konumu(i, c) for i in range(n)]
+    return [tohum_konumu(i, c, aci_radyan) for i in range(n)]
 
 
 # Hızlı görsel test (modül doğrudan çalıştırılırsa)

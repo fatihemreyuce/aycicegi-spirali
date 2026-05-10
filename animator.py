@@ -28,7 +28,8 @@ from visualizer import figur_hazirla, KENAR_RENGI
 RENK_AKTIF = "#ff3b3b"        # Kırmızı
 RENK_ZIYARET = "#5cff7a"      # Parlak yeşil
 RENK_BEKLEME = "#7d7d7d"      # Gri
-RENK_VURGU = "#1f8bff"        # Mavi
+RENK_VURGU = "#1f8bff"        # Mavi (validator)
+RENK_SECILI = "#c389ff"       # Mor (kullanıcının tıklayarak seçtiği tohum)
 
 # Graf modu için renkler
 GRAF_OK_RENGI = "#ffd400"      # Sarı (kenar/ok rengi)
@@ -92,6 +93,8 @@ class SpiralAnimator:
             self.fig: Figure = ax.figure  # type: ignore[assignment]
 
         self.vurgu_kumesi = set(vurgu_indexleri) if vurgu_indexleri else set()
+        # Kullanıcının tıklayarak seçtiği tohum (mor) — None ise seçili tohum yok
+        self.secili_index: Optional[int] = None
         self.konumlar = dugum_konumlari(G)
         self.sirali_dugumler = sorted(self.konumlar.keys())
 
@@ -223,8 +226,11 @@ class SpiralAnimator:
 
         renkler = []
         for i in self.sirali_dugumler:
-            if i in self.vurgu_kumesi and i <= kare_no:
-                # Validator vurgusu önceliklidir — mavi gösterilir
+            if i == self.secili_index and i <= kare_no:
+                # Kullanıcı tıklamasıyla seçilen tohum — mor, en yüksek öncelik
+                renkler.append(RENK_SECILI)
+            elif i in self.vurgu_kumesi and i <= kare_no:
+                # Validator vurgusu — mavi
                 renkler.append(RENK_VURGU)
             elif i < kare_no:
                 renkler.append(RENK_ZIYARET)

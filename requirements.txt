@@ -1,2 +1,10 @@
-matplotlib>=3.6
-networkx>=3.0
+# Çekirdek bağımlılıklar — Python 3.13 + üzeri ile test edildi
+matplotlib>=3.6,<4.0
+networkx>=3.0,<4.0
+numpy>=1.24,<3.0
+
+# Opsiyonel: Voronoi/Delaunay overlay ve traversal/Dijkstra "Delaunay" modu için
+scipy>=1.10,<2.0
+
+# Geliştirme: birim testleri çalıştırmak için (unittest ile de çalışır)
+pytest>=7.0,<9.0
