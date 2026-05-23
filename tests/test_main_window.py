@@ -131,3 +131,13 @@ def test_main_window_validator_accept_canvas_vurgu_ekler(qtbot):
     p.giris_kutu.setText("21")
     p.dogrula_butonu.click()
     assert 8 in pencere.canvas._vurgu_indeksleri  # F(8) = 21
+
+
+def test_main_window_gor_yakinsama_acinca_gercek_pencere(qtbot):
+    from ui.windows.convergence import YakinsamaPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("gor.yakinsama")
+    p = pencere._pencere_yoneticisi._pencereler["gor.yakinsama"]
+    qtbot.addWidget(p)
+    assert isinstance(p, YakinsamaPenceresi)

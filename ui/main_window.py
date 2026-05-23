@@ -13,6 +13,7 @@ from ui.info_card import InfoCard
 from ui.windows.base import WindowManager
 from ui.windows.placeholder import PlaceholderWindow
 from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
+from ui.windows.convergence import YakinsamaPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -105,6 +106,12 @@ class MainWindow(QMainWindow):
             self._pencere_yoneticisi.ac_veya_one_getir(
                 eylem_id,
                 self._fibonacci_validator_yarat,
+            )
+            return
+        if eylem_id == "gor.yakinsama":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                lambda: YakinsamaPenceresi(mevcut_n=self.top_bar.n_kutu.value()),
             )
             return
         self._pencere_yoneticisi.ac_veya_one_getir(
