@@ -12,6 +12,7 @@ from ui.spiral_canvas import SpiralCanvas
 from ui.info_card import InfoCard
 from ui.windows.base import WindowManager
 from ui.windows.placeholder import PlaceholderWindow
+from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -100,10 +101,23 @@ class MainWindow(QMainWindow):
 
     def _menu_eylemi_geldi(self, eylem_id: str) -> None:
         baslik = MENU_BASLIKLARI.get(eylem_id, eylem_id)
+        if eylem_id == "graf.validator":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                self._fibonacci_validator_yarat,
+            )
+            return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,
             lambda: PlaceholderWindow(eylem_id, baslik),
         )
+
+    def _fibonacci_validator_yarat(self) -> FibonacciValidatorPenceresi:
+        """FibonacciValidatorPenceresi'ni mevcut n ile kur ve sinyalleri bağla."""
+        p = FibonacciValidatorPenceresi(mevcut_n=self.top_bar.n_kutu.value())
+        p.tohum_vurgula.connect(self.canvas.vurgu_ekle)
+        p.vurgu_temizle.connect(self.canvas.vurgu_temizle)
+        return p
 
     def _animasyon_toggle_geldi(self, basili: bool) -> None:
         """Animasyon butonu durumu değişti."""

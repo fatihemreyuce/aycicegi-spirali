@@ -109,3 +109,25 @@ def test_main_window_sigdir_butonu_canvas_sigdir_cagirir(qtbot):
     with patch.object(pencere.canvas, "sigdir") as mock:
         pencere.top_bar.sigdir_butonu.click()
         mock.assert_called_once()
+
+
+def test_main_window_graf_validator_acinca_gercek_pencere(qtbot):
+    from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("graf.validator")
+    yonetici = pencere._pencere_yoneticisi
+    p = yonetici._pencereler["graf.validator"]
+    qtbot.addWidget(p)
+    assert isinstance(p, FibonacciValidatorPenceresi)
+
+
+def test_main_window_validator_accept_canvas_vurgu_ekler(qtbot):
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("graf.validator")
+    p = pencere._pencere_yoneticisi._pencereler["graf.validator"]
+    qtbot.addWidget(p)
+    p.giris_kutu.setText("21")
+    p.dogrula_butonu.click()
+    assert 8 in pencere.canvas._vurgu_indeksleri  # F(8) = 21
