@@ -172,3 +172,13 @@ def test_main_window_tohum_secildi_canvas_secim_ekler(qtbot):
     p.giris_kutu.setText("21")
     p.sec_butonu.click()
     assert 21 in pencere.canvas._secim_indeksleri
+
+
+def test_main_window_graf_matris_acinca_gercek_pencere(qtbot):
+    from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("graf.matris")
+    p = pencere._pencere_yoneticisi._pencereler["graf.matris"]
+    qtbot.addWidget(p)
+    assert isinstance(p, KomsulukMatrisiPenceresi)

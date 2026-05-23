@@ -16,6 +16,7 @@ from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
 from ui.windows.convergence import YakinsamaPenceresi
 from ui.windows.comparison import KarsilastirmaPenceresi
 from ui.windows.seed_select import TohumSecimPenceresi
+from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -126,6 +127,15 @@ class MainWindow(QMainWindow):
             self._pencere_yoneticisi.ac_veya_one_getir(
                 eylem_id,
                 self._tohum_secim_yarat,
+            )
+            return
+        if eylem_id == "graf.matris":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                lambda: KomsulukMatrisiPenceresi(
+                    mevcut_n=self.top_bar.n_kutu.value(),
+                    aci_derece=self.top_bar.aci_kutu.value(),
+                ),
             )
             return
         self._pencere_yoneticisi.ac_veya_one_getir(
