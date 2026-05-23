@@ -73,7 +73,16 @@ class SpiralCanvas(QWidget):
 
         # Hover/click bağlantıları
         self._canvas.mpl_connect("motion_notify_event", self._hover_handler)
-        self._canvas.mpl_connect("button_press_event", self._click_handler)
+        self._canvas.mpl_connect("motion_notify_event", self._motion_pan_handler)
+        self._canvas.mpl_connect("button_press_event", self._press_handler)
+        self._canvas.mpl_connect("button_release_event", self._release_handler)
+        self._canvas.mpl_connect("scroll_event", self._scroll_handler)
+
+        # Pan state
+        self._press_pixel: Optional[tuple[float, float]] = None
+        self._press_data: Optional[tuple[float, float]] = None
+        self._panning: bool = False
+        self._pan_esik_px: float = 5.0
 
         self._eksenleri_hazirla()
 
@@ -183,10 +192,99 @@ class SpiralCanvas(QWidget):
         else:
             self.nokta_hover.emit(idx)
 
-    def _click_handler(self, event) -> None:
-        idx = self._en_yakin_nokta(event)
-        if idx is not None:
-            self.nokta_tiklandi.emit(idx)
+    # ---- Sığdır ----
+
+
+    def sigdir(self) -> None:
+        """xlim/ylim'i çizilen veri sınırına %5 padding ile yeniden oturt."""
+        if not self._konumlar:
+            return
+        xs = [p[0] for p in self._konumlar]
+        ys = [p[1] for p in self._konumlar]
+        xmin, xmax = min(xs), max(xs)
+        ymin, ymax = min(ys), max(ys)
+        pad_x = (xmax - xmin) * 0.05 + 1.0
+        pad_y = (ymax - ymin) * 0.05 + 1.0
+        self._axes.set_xlim(xmin - pad_x, xmax + pad_x)
+        self._axes.set_ylim(ymin - pad_y, ymax + pad_y)
+        self._canvas.draw_idle()
+
+    # ---- Scroll zoom ----
+
+    def _scroll_handler(self, event) -> None:
+        """İmleç-merkezli zoom in/out."""
+        if event.inaxes != self._axes or event.xdata is None or event.ydata is None:
+            return
+        olcek = 1 / 1.2 if (event.button == "up" or event.step > 0) else 1.2
+        xmin, xmax = self._axes.get_xlim()
+        ymin, ymax = self._axes.get_ylim()
+        cx, cy = event.xdata, event.ydata
+        yeni_xmin = cx - (cx - xmin) * olcek
+        yeni_xmax = cx + (xmax - cx) * olcek
+        yeni_ymin = cy - (cy - ymin) * olcek
+        yeni_ymax = cy + (ymax - cy) * olcek
+        self._axes.set_xlim(yeni_xmin, yeni_xmax)
+        self._axes.set_ylim(yeni_ymin, yeni_ymax)
+        self._canvas.draw_idle()
+
+    # ---- Pan (sol-tık + drag) ----
+
+    def _press_handler(self, event) -> None:
+        """Sol-tık press: pan anchor'ı kaydet."""
+        if event.button != 1 or event.inaxes != self._axes:
+            return
+        if event.x is None or event.y is None or event.xdata is None or event.ydata is None:
+            return
+        self._press_pixel = (event.x, event.y)
+        self._press_data = (event.xdata, event.ydata)
+        self._panning = False
+
+    def _motion_pan_handler(self, event) -> None:
+        """Press anchor varsa eşik kontrolüyle pan."""
+        if self._press_pixel is None:
+            return
+        if event.x is None or event.y is None or event.inaxes != self._axes:
+            return
+        dx_px = event.x - self._press_pixel[0]
+        dy_px = event.y - self._press_pixel[1]
+        if not self._panning:
+            if (dx_px * dx_px + dy_px * dy_px) < (self._pan_esik_px * self._pan_esik_px):
+                return
+            self._panning = True
+
+        if event.xdata is None or event.ydata is None or self._press_data is None:
+            return
+        dx_data = event.xdata - self._press_data[0]
+        dy_data = event.ydata - self._press_data[1]
+        xmin, xmax = self._axes.get_xlim()
+        ymin, ymax = self._axes.get_ylim()
+        self._axes.set_xlim(xmin - dx_data, xmax - dx_data)
+        self._axes.set_ylim(ymin - dy_data, ymax - dy_data)
+        self._canvas.draw_idle()
+
+    def _release_handler(self, event) -> None:
+        """Sol-tık release: pan değilse tıklama olarak yorumla."""
+        if event.button != 1 or self._press_pixel is None:
+            return
+        if not self._panning and self._press_data is not None:
+            idx = self._en_yakin_nokta_data(self._press_data[0], self._press_data[1])
+            if idx is not None:
+                self.nokta_tiklandi.emit(idx)
+        self._press_pixel = None
+        self._press_data = None
+        self._panning = False
+
+    def _en_yakin_nokta_data(self, xd: float, yd: float) -> Optional[int]:
+        """Veri koordinatında en yakın tohumu döndürür (eşik 3.0)."""
+        esik = 3.0
+        en_yakin: Optional[int] = None
+        en_yakin_mes = float("inf")
+        for i, (x, y) in enumerate(self._konumlar):
+            d = math.hypot(x - xd, y - yd)
+            if d < esik and d < en_yakin_mes:
+                en_yakin_mes = d
+                en_yakin = i
+        return en_yakin
 
     # ---- Animasyon ----
 

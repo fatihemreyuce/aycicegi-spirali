@@ -111,3 +111,71 @@ def test_animasyonu_basla_hiz_canli_guncellenir(qtbot):
     canvas.hiz_guncelle(interval_ms=50)
     assert canvas._timer.interval() == 50
     canvas.animasyonu_durdur()
+
+
+def test_sigdir_xlim_ylim_yeniden_ayarlar(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(100, 137.5)
+    # Manuel olarak xlim/ylim'i bozulmuş bir aralığa ayarla
+    canvas._axes.set_xlim(-1000, 1000)
+    canvas._axes.set_ylim(-1000, 1000)
+    canvas.sigdir()
+    xmin, xmax = canvas._axes.get_xlim()
+    ymin, ymax = canvas._axes.get_ylim()
+    assert (xmax - xmin) < 200
+    assert (ymax - ymin) < 200
+
+
+def test_scroll_event_xlim_daraltir(qtbot):
+    """Scroll-in (zoom in) xlim aralığını daraltır, imleç-merkezli."""
+    from unittest.mock import MagicMock
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(100, 137.5)
+    canvas.sigdir()
+    xmin0, xmax0 = canvas._axes.get_xlim()
+    aralik0 = xmax0 - xmin0
+    event = MagicMock()
+    event.inaxes = canvas._axes
+    event.xdata = (xmin0 + xmax0) / 2
+    event.ydata = 0
+    event.button = "up"
+    event.step = 1
+    canvas._scroll_handler(event)
+    xmin1, xmax1 = canvas._axes.get_xlim()
+    aralik1 = xmax1 - xmin1
+    assert aralik1 < aralik0
+
+
+def test_pan_press_motion_release_xlim_kaydirir(qtbot):
+    from unittest.mock import MagicMock
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(100, 137.5)
+    canvas.sigdir()
+    xmin0, xmax0 = canvas._axes.get_xlim()
+
+    press = MagicMock()
+    press.inaxes = canvas._axes
+    press.button = 1
+    press.x = 100
+    press.y = 100
+    press.xdata = (xmin0 + xmax0) / 2
+    press.ydata = 0
+    canvas._press_handler(press)
+
+    motion = MagicMock()
+    motion.inaxes = canvas._axes
+    motion.x = 150
+    motion.y = 100
+    motion.xdata = press.xdata + 5.0
+    motion.ydata = 0
+    canvas._motion_pan_handler(motion)
+
+    release = MagicMock()
+    release.button = 1
+    canvas._release_handler(release)
+
+    xmin1, xmax1 = canvas._axes.get_xlim()
+    assert xmin1 != xmin0
