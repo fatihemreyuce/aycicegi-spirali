@@ -208,3 +208,33 @@ def test_vurgu_oncelik_fibonacci_uzerine_yazar(qtbot):
     canvas.vurgu_ekle(8)
     renkler = _renk_listesi(canvas)
     assert renkler[8].lower() == theme.MAVI_VURGU.lower()
+
+
+def test_secim_ekle_mor_renk(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.secim_ekle(7)
+    renkler = _renk_listesi(canvas)
+    assert renkler[7].lower() == theme.MOR_VURGU.lower()
+
+
+def test_secim_temizle_morluyu_kaldirir(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.secim_ekle(7)
+    canvas.secim_temizle()
+    renkler = _renk_listesi(canvas)
+    assert renkler[7].lower() != theme.MOR_VURGU.lower()
+
+
+def test_secim_mavi_validator_uzerinde_oncelik(qtbot):
+    """Aynı indeks hem mavi (validator) hem mor (seçim) → mor kazansın."""
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.vurgu_ekle(7)   # validator → mavi
+    canvas.secim_ekle(7)   # seçim → mor (öncelikli)
+    renkler = _renk_listesi(canvas)
+    assert renkler[7].lower() == theme.MOR_VURGU.lower()

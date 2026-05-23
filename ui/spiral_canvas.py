@@ -66,6 +66,8 @@ class SpiralCanvas(QWidget):
         self._scatter = None
         # Validator vurgu state — cross-window'den gelen tohum indeksleri
         self._vurgu_indeksleri: set[int] = set()
+        # Tohum seçimi state — kullanıcının seçtiği indeksler
+        self._secim_indeksleri: set[int] = set()
         # Animasyon state
         self._anim_kare: int = -1
         self._anim_toplam: int = 0
@@ -151,6 +153,8 @@ class SpiralCanvas(QWidget):
                 renkler.append(theme.BEKLEME)
             elif i == kare_no:
                 renkler.append(theme.VURGU)
+            elif i in self._secim_indeksleri:
+                renkler.append(theme.MOR_VURGU)
             elif i in self._vurgu_indeksleri:
                 renkler.append(theme.MAVI_VURGU)
             elif i in fib_indeksleri:
@@ -367,5 +371,19 @@ class SpiralCanvas(QWidget):
         if not self._vurgu_indeksleri:
             return
         self._vurgu_indeksleri.clear()
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def secim_ekle(self, idx: int) -> None:
+        """Verilen tohum indeksini mor seçim kümesine ekle ve yeniden çiz."""
+        self._secim_indeksleri.add(idx)
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def secim_temizle(self) -> None:
+        """Tüm tohum seçimlerini temizle ve yeniden çiz."""
+        if not self._secim_indeksleri:
+            return
+        self._secim_indeksleri.clear()
         if self._konumlar:
             self._yeniden_ciz()

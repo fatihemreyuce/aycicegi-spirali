@@ -23,6 +23,7 @@ def test_renk_sabitleri_hex_formatinda():
         "VURGU",
         "BEKLEME",
         "MAVI_VURGU",
+        "MOR_VURGU",
     ]:
         deger = getattr(theme, ad)
         assert isinstance(deger, str), f"{ad} string olmalı"
