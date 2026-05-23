@@ -89,15 +89,6 @@ def test_main_window_ciz_animasyonu_iptal_eder(qtbot):
     assert pencere.top_bar.animasyon_butonu.isChecked() is False
 
 
-def test_main_window_sigdir_butonu_canvas_sigdir_cagirir(qtbot):
-    from unittest.mock import patch
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    with patch.object(pencere.canvas, "sigdir") as mock:
-        pencere.top_bar.sigdir_butonu.click()
-        mock.assert_called_once()
-
-
 def test_main_window_graf_validator_acinca_gercek_pencere(qtbot):
     from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
     pencere = MainWindow()

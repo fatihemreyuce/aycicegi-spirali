@@ -58,10 +58,9 @@ class MainWindow(QMainWindow):
         self.canvas.nokta_hover_iptal.connect(lambda: self.info_card.secili_tohum(None))
         self.canvas.nokta_tiklandi.connect(self.info_card.secili_tohum)
 
-        # Animasyon + sığdır bağlantıları
+        # Animasyon bağlantıları
         self.top_bar.animasyon_toggled.connect(self._animasyon_toggle_geldi)
         self.top_bar.hiz_degisti.connect(self._hiz_degisti)
-        self.top_bar.sigdir_istendi.connect(self.canvas.sigdir)
         self.canvas.animasyon_bitti.connect(self._animasyon_bitti)
 
         # Pencere yöneticisi + menü bağlantısı
