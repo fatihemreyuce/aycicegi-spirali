@@ -26,6 +26,7 @@ AKSAN: str = "#1a4480"               # Oxford lacivert — vurgu, başlık altı
 AKSAN_KOYU: str = "#142f5c"          # hover/pressed
 VURGU: str = "#b8242a"               # Fibonacci noktaları — uyarı kırmızısı
 BEKLEME: str = "#7d7d7d"             # Animasyon sırasında henüz yerleşmemiş tohum
+MAVI_VURGU: str = "#1f8bff"          # Validator doğrulanan tohum vurgusu
 
 
 # ---- Tipografi ----
