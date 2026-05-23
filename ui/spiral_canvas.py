@@ -72,7 +72,6 @@ class SpiralCanvas(QWidget):
     nokta_hover_iptal = Signal()
     nokta_tiklandi = Signal(int)
     animasyon_bitti = Signal()
-    kare_degisti = Signal(int)  # Manuel ya da otomatik kare ilerlemesi
 
     def __init__(self) -> None:
         super().__init__()
@@ -93,8 +92,6 @@ class SpiralCanvas(QWidget):
         self._scatter = None
         # Validator vurgu state — cross-window'den gelen tohum indeksleri
         self._vurgu_indeksleri: set[int] = set()
-        # Tohum seçimi state — kullanıcının seçtiği indeksler
-        self._secim_indeksleri: set[int] = set()
         # Animasyon state
         self._anim_kare: int = -1
         self._anim_toplam: int = 0
@@ -193,10 +190,6 @@ class SpiralCanvas(QWidget):
                 continue
             if i == kare_no:
                 renkler.append(theme.VURGU)
-                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
-                continue
-            if i in self._secim_indeksleri:
-                renkler.append(theme.MOR_VURGU)
                 boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
                 continue
             if i in self._vurgu_indeksleri:
@@ -506,46 +499,9 @@ class SpiralCanvas(QWidget):
             konumlar=self._konumlar,
             fib_indeksleri=self._fib_indeksleri,
         )
-        self.kare_degisti.emit(self._anim_kare)
         if self._anim_kare >= self._anim_toplam - 1:
             self._timer.stop()
             self.animasyon_bitti.emit()
-
-    # ---- Manuel kare kontrolü (cross-window) ----
-
-    def kareye_atla(self, k: int) -> None:
-        """Belirli bir kareye atla (animasyon durdurulur)."""
-        if self._timer.isActive():
-            self._timer.stop()
-        toplam = len(self._konumlar)
-        if toplam == 0:
-            return
-        k = max(-1, min(toplam - 1, int(k)))
-        self._anim_kare = k
-        self._anim_toplam = toplam
-        self._kare_ciz(
-            kare_no=k,
-            toplam=toplam,
-            konumlar=self._konumlar,
-            fib_indeksleri=self._fib_indeksleri,
-        )
-        self.kare_degisti.emit(k)
-
-    def adim_at(self) -> None:
-        """Bir sonraki kareye geç."""
-        self.kareye_atla(self._anim_kare + 1)
-
-    def adim_geri(self) -> None:
-        """Bir önceki kareye geri dön."""
-        self.kareye_atla(self._anim_kare - 1)
-
-    def mevcut_kare(self) -> int:
-        """Mevcut animasyon kare numarası (-1 = sıfır pozisyon)."""
-        return self._anim_kare
-
-    def toplam_kare(self) -> int:
-        """Çizilen toplam kare sayısı (= n)."""
-        return len(self._konumlar)
 
     # ---- Validator vurgu (cross-window) ----
 
@@ -560,20 +516,6 @@ class SpiralCanvas(QWidget):
         if not self._vurgu_indeksleri:
             return
         self._vurgu_indeksleri.clear()
-        if self._konumlar:
-            self._yeniden_ciz()
-
-    def secim_ekle(self, idx: int) -> None:
-        """Verilen tohum indeksini mor seçim kümesine ekle ve yeniden çiz."""
-        self._secim_indeksleri.add(idx)
-        if self._konumlar:
-            self._yeniden_ciz()
-
-    def secim_temizle(self) -> None:
-        """Tüm tohum seçimlerini temizle ve yeniden çiz."""
-        if not self._secim_indeksleri:
-            return
-        self._secim_indeksleri.clear()
         if self._konumlar:
             self._yeniden_ciz()
 
