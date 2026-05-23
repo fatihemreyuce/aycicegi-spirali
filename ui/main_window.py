@@ -58,6 +58,12 @@ class MainWindow(QMainWindow):
         self.canvas.nokta_hover_iptal.connect(lambda: self.info_card.secili_tohum(None))
         self.canvas.nokta_tiklandi.connect(self.info_card.secili_tohum)
 
+        # Animasyon + sığdır bağlantıları
+        self.top_bar.animasyon_toggled.connect(self._animasyon_toggle_geldi)
+        self.top_bar.hiz_degisti.connect(self._hiz_degisti)
+        self.top_bar.sigdir_istendi.connect(self.canvas.sigdir)
+        self.canvas.animasyon_bitti.connect(self._animasyon_bitti)
+
         # Pencere yöneticisi + menü bağlantısı
         self._pencere_yoneticisi = WindowManager()
         self.top_bar.menu_eylemi.connect(self._menu_eylemi_geldi)
@@ -66,6 +72,10 @@ class MainWindow(QMainWindow):
         self._cizim_istendi(self.top_bar.n_kutu.value(), self.top_bar.aci_kutu.value())
 
     def _cizim_istendi(self, n: int, aci_derece: float) -> None:
+        # Çalışan animasyonu iptal — setChecked(False) toggle sinyali üzerinden
+        # _animasyon_toggle_geldi'yi tetikler ve animasyonu_durdur çağrılır.
+        if self.top_bar.animasyon_butonu.isChecked():
+            self.top_bar.animasyon_butonu.setChecked(False)
         self.canvas.spirali_ciz(n, aci_derece)
         self.info_card.n_degisti(n)
 
@@ -94,3 +104,29 @@ class MainWindow(QMainWindow):
             eylem_id,
             lambda: PlaceholderWindow(eylem_id, baslik),
         )
+
+    def _animasyon_toggle_geldi(self, basili: bool) -> None:
+        """Animasyon butonu durumu değişti."""
+        if basili:
+            n = self.top_bar.n_kutu.value()
+            aci = self.top_bar.aci_kutu.value()
+            interval = self._mevcut_interval_ms()
+            self.canvas.animasyonu_basla(toplam_n=n, aci_derece=aci, interval_ms=interval)
+        else:
+            self.canvas.animasyonu_durdur()
+
+    def _hiz_degisti(self, ad: str) -> None:
+        """Hız ComboBox seçimi değişti."""
+        interval = self._mevcut_interval_ms()
+        if self.top_bar.animasyon_butonu.isChecked():
+            self.canvas.hiz_guncelle(interval_ms=interval)
+
+    def _mevcut_interval_ms(self) -> int:
+        """Seçili Hız adına karşılık gelen ms değerini döndürür."""
+        hiz_haritasi = {"Yavaş": 500, "Normal": 200, "Hızlı": 50, "Anında": 1}
+        return hiz_haritasi.get(self.top_bar.hiz_kutu.currentText(), 200)
+
+    def _animasyon_bitti(self) -> None:
+        """Canvas animasyon_bitti yaydı — buton state'ini OFF yap."""
+        if self.top_bar.animasyon_butonu.isChecked():
+            self.top_bar.animasyon_butonu.setChecked(False)
