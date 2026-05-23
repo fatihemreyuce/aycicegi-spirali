@@ -182,3 +182,13 @@ def test_main_window_graf_matris_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["graf.matris"]
     qtbot.addWidget(p)
     assert isinstance(p, KomsulukMatrisiPenceresi)
+
+
+def test_main_window_graf_gorunum_acinca_gercek_pencere(qtbot):
+    from ui.windows.graph_view import GrafGorunumPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("graf.gorunum")
+    p = pencere._pencere_yoneticisi._pencereler["graf.gorunum"]
+    qtbot.addWidget(p)
+    assert isinstance(p, GrafGorunumPenceresi)
