@@ -61,3 +61,18 @@ def test_topbar_hiz_degisimi_sinyal_yayar(qtbot):
     with qtbot.waitSignal(bar.hiz_degisti, timeout=500) as kayit:
         bar.hiz_kutu.setCurrentText("Hızlı")
     assert kayit.args == ["Hızlı"]
+
+
+def test_topbar_sigdir_butonu_var_ve_sinyal_yayar(qtbot):
+    bar = TopBar()
+    qtbot.addWidget(bar)
+    assert isinstance(bar.sigdir_butonu, QPushButton)
+    assert "Sığdır" in bar.sigdir_butonu.text()
+    with qtbot.waitSignal(bar.sigdir_istendi, timeout=500):
+        bar.sigdir_butonu.click()
+
+
+def test_topbar_yakinlastir_butonu_kaldirildi(qtbot):
+    bar = TopBar()
+    qtbot.addWidget(bar)
+    assert not hasattr(bar, "yakinlastir_butonu")

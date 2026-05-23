@@ -37,8 +37,8 @@ class TopBar(QWidget):
 
     cizim_istendi = Signal(int, float)
     animasyon_toggled = Signal(bool)
-    yakinlastir_toggled = Signal(bool)
     hiz_degisti = Signal(str)
+    sigdir_istendi = Signal()
     menu_eylemi = Signal(str)
 
     def __init__(self) -> None:
@@ -95,12 +95,10 @@ class TopBar(QWidget):
         self.hiz_kutu.currentTextChanged.connect(self.hiz_degisti)
         duzen.addWidget(self.hiz_kutu)
 
-        # Yakınlaştır
-        self.yakinlastir_butonu = QToolButton()
-        self.yakinlastir_butonu.setText("⊕ Yakınlaştır")
-        self.yakinlastir_butonu.setCheckable(True)
-        self.yakinlastir_butonu.toggled.connect(self.yakinlastir_toggled)
-        duzen.addWidget(self.yakinlastir_butonu)
+        # Sığdır
+        self.sigdir_butonu = QPushButton("↺ Sığdır")
+        self.sigdir_butonu.clicked.connect(self.sigdir_istendi)
+        duzen.addWidget(self.sigdir_butonu)
 
         # Sağa it
         duzen.addStretch(1)
