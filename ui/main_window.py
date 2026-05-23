@@ -17,7 +17,6 @@ from ui.windows.convergence import YakinsamaPenceresi
 from ui.windows.comparison import KarsilastirmaPenceresi
 from ui.windows.seed_select import TohumSecimPenceresi
 from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
-from ui.windows.graph_view import GrafGorunumPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -140,13 +139,11 @@ class MainWindow(QMainWindow):
             )
             return
         if eylem_id == "graf.gorunum":
-            self._pencere_yoneticisi.ac_veya_one_getir(
-                eylem_id,
-                lambda: GrafGorunumPenceresi(
-                    mevcut_n=self.top_bar.n_kutu.value(),
-                    aci_derece=self.top_bar.aci_kutu.value(),
-                ),
-            )
+            # Ayrı pencere değil — ana canvas'ı toggle et
+            if self.canvas.graf_modu_acik_mi():
+                self.canvas.graf_modu_kapat()
+            else:
+                self.canvas.graf_modu_ac()
             return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,

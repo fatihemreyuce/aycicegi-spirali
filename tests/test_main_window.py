@@ -37,15 +37,15 @@ def test_main_window_info_card_n_degistirir(qtbot):
 def test_main_window_menu_tiklayinca_placeholder_acilir(qtbot):
     pencere = MainWindow()
     qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("graf.gorunum")
-    # WindowManager iç sözlüğünde olmalı
+    # alg.bfs_dfs hâlâ placeholder (Plan 7+ portu bekliyor)
+    pencere.top_bar.menu_eylemi.emit("alg.bfs_dfs")
     yonetici = pencere._pencere_yoneticisi
-    assert "graf.gorunum" in yonetici._pencereler
-    p1 = yonetici._pencereler["graf.gorunum"]
+    assert "alg.bfs_dfs" in yonetici._pencereler
+    p1 = yonetici._pencereler["alg.bfs_dfs"]
     qtbot.addWidget(p1)
     # İkinci kez tıkla — aynı instance olmalı
-    pencere.top_bar.menu_eylemi.emit("graf.gorunum")
-    p2 = yonetici._pencereler["graf.gorunum"]
+    pencere.top_bar.menu_eylemi.emit("alg.bfs_dfs")
+    p2 = yonetici._pencereler["alg.bfs_dfs"]
     assert p1 is p2
 
 
@@ -184,11 +184,15 @@ def test_main_window_graf_matris_acinca_gercek_pencere(qtbot):
     assert isinstance(p, KomsulukMatrisiPenceresi)
 
 
-def test_main_window_graf_gorunum_acinca_gercek_pencere(qtbot):
-    from ui.windows.graph_view import GrafGorunumPenceresi
+def test_main_window_graf_gorunum_toggles_canvas(qtbot):
+    """graf.gorunum menü öğesi ana canvas'ı toggle eder; ayrı pencere açmaz."""
     pencere = MainWindow()
     qtbot.addWidget(pencere)
+    assert pencere.canvas.graf_modu_acik_mi() is False
     pencere.top_bar.menu_eylemi.emit("graf.gorunum")
-    p = pencere._pencere_yoneticisi._pencereler["graf.gorunum"]
-    qtbot.addWidget(p)
-    assert isinstance(p, GrafGorunumPenceresi)
+    assert pencere.canvas.graf_modu_acik_mi() is True
+    # WindowManager'da pencere yok (toggle, ayrı pencere yok)
+    assert "graf.gorunum" not in pencere._pencere_yoneticisi._pencereler
+    # İkinci tıklama → kapat
+    pencere.top_bar.menu_eylemi.emit("graf.gorunum")
+    assert pencere.canvas.graf_modu_acik_mi() is False
