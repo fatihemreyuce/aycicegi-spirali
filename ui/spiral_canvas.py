@@ -64,6 +64,8 @@ class SpiralCanvas(QWidget):
         self._fib_indeksleri: set[int] = set()
         # Statik scatter referansı — _kare_ciz tarafından kullanılır
         self._scatter = None
+        # Validator vurgu state — cross-window'den gelen tohum indeksleri
+        self._vurgu_indeksleri: set[int] = set()
         # Animasyon state
         self._anim_kare: int = -1
         self._anim_toplam: int = 0
@@ -149,6 +151,8 @@ class SpiralCanvas(QWidget):
                 renkler.append(theme.BEKLEME)
             elif i == kare_no:
                 renkler.append(theme.VURGU)
+            elif i in self._vurgu_indeksleri:
+                renkler.append(theme.MAVI_VURGU)
             elif i in fib_indeksleri:
                 renkler.append(theme.VURGU)
             else:
@@ -349,3 +353,19 @@ class SpiralCanvas(QWidget):
         if self._anim_kare >= self._anim_toplam - 1:
             self._timer.stop()
             self.animasyon_bitti.emit()
+
+    # ---- Validator vurgu (cross-window) ----
+
+    def vurgu_ekle(self, idx: int) -> None:
+        """Verilen tohum indeksini mavi vurgu kümesine ekle ve yeniden çiz."""
+        self._vurgu_indeksleri.add(idx)
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def vurgu_temizle(self) -> None:
+        """Tüm validator vurgularını temizle ve yeniden çiz."""
+        if not self._vurgu_indeksleri:
+            return
+        self._vurgu_indeksleri.clear()
+        if self._konumlar:
+            self._yeniden_ciz()

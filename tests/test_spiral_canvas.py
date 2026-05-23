@@ -179,3 +179,32 @@ def test_pan_press_motion_release_xlim_kaydirir(qtbot):
 
     xmin1, xmax1 = canvas._axes.get_xlim()
     assert xmin1 != xmin0
+
+
+def test_vurgu_ekle_mavi_renk(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.vurgu_ekle(5)
+    renkler = _renk_listesi(canvas)
+    assert renkler[5].lower() == theme.MAVI_VURGU.lower()
+
+
+def test_vurgu_temizle_eski_vurguyu_kaldirir(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.vurgu_ekle(5)
+    canvas.vurgu_temizle()
+    renkler = _renk_listesi(canvas)
+    assert renkler[5].lower() != theme.MAVI_VURGU.lower()
+
+
+def test_vurgu_oncelik_fibonacci_uzerine_yazar(qtbot):
+    """Vurgu ile Fibonacci aynı indeksteyse → mavi gözüksün."""
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)  # 0,1,2,3,5,8 Fibonacci
+    canvas.vurgu_ekle(8)
+    renkler = _renk_listesi(canvas)
+    assert renkler[8].lower() == theme.MAVI_VURGU.lower()
