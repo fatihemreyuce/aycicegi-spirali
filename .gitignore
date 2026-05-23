@@ -35,3 +35,6 @@ Thumbs.db
 
 # Çalışma notları (proje deliverable'ı değildir)
 promt.md
+
+# Brainstorm tarayıcı sunucusu — ara dosyalar, commit'lenmez
+.superpowers/
