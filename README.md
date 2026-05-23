@@ -167,11 +167,21 @@ pip install pytest                               # opsiyonel: pytest çalıştı
 
 ### ▶️ 3. Çalıştırma
 
+#### Yeni PySide6 arayüzü (varsayılan)
+
 ```bash
 python main.py
 ```
 
-GUI penceresi açılınca **Çiz** butonuna basarak spirali izleyebilirsiniz.
+GUI penceresi açılınca üst şeritten **n** ve **α** değerlerini ayarlayıp **Çiz**'e basarak spirali izleyebilirsiniz; Fibonacci indeksli tohumlar kırmızı vurgu ile gösterilir, sağ-üst InfoCard anlık F oranını verir.
+
+#### Eski Tkinter arayüzü (yedek)
+
+PySide6 portu hâlâ devam ettiğinden, tüm analiz pencerelerine sahip eski Tkinter arayüzü geri-dönüş yolu olarak korunuyor:
+
+```bash
+python main_legacy.py
+```
 
 ### 🧪 4. Testler (opsiyonel)
 
