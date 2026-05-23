@@ -30,18 +30,26 @@ from ui import theme
 
 
 # Graf modu sabitleri
-GRAF_KENAR_RENGI = "#d4b400"          # Aydınlık tema üzerinde okunur sarı
 GRAF_TOOLTIP_BG = "#1a2238"           # Lacivert
 GRAF_TOOLTIP_FG = "#fafaf7"           # Krem
+PHI = (1 + 5 ** 0.5) / 2              # Altın oran
 
 
-def _kenar_kalinligi(agirlik: float) -> float:
-    """Eşikler: w<1.6 ince, w<1.618 orta, ≥1.618 kalın."""
-    if agirlik < 1.6:
-        return 0.5
-    if agirlik < 1.618:
-        return 1.5
-    return 2.5
+def _kenar_rengi(agirlik: float) -> tuple[float, float, float, float]:
+    """
+    Ağırlık φ'ye ne kadar yakınsa o kadar yoğun AKSAN (lacivert);
+    uzaklaştıkça soluklaşır. RGBA tuple döndürür.
+    """
+    fark = abs(agirlik - PHI)
+    # 0.2 birim fark = tam soluk (alpha düşer + renk grileşir)
+    yakinlik = max(0.0, min(1.0, 1.0 - fark / 0.2))
+    # AKSAN = #1a4480 → (0.102, 0.267, 0.502)
+    # METIN_PASIF = #888888 → (0.533, 0.533, 0.533)
+    r = 0.533 + (0.102 - 0.533) * yakinlik
+    g = 0.533 + (0.267 - 0.533) * yakinlik
+    b = 0.533 + (0.502 - 0.533) * yakinlik
+    alpha = 0.35 + 0.55 * yakinlik  # uzakta soluk, yakında dolu
+    return (r, g, b, alpha)
 
 
 def _fibonacci_indeks_kumesi(n: int) -> set[int]:
@@ -174,32 +182,61 @@ class SpiralCanvas(QWidget):
         xs = [p[0] for p in konumlar]
         ys = [p[1] for p in konumlar]
 
+        # Renk + boyut hesaplaması — graf modunda görsel hiyerarşi devreye girer
         renkler: list[str] = []
+        boyutlar: list[float] = []
         for i in range(toplam):
+            # Bekleyen ve etkileşim öncelikleri (her iki modda da geçerli)
             if i > kare_no:
                 renkler.append(theme.BEKLEME)
-            elif i == kare_no:
+                boyutlar.append(10 if not self._graf_modu else 12)
+                continue
+            if i == kare_no:
                 renkler.append(theme.VURGU)
-            elif i in self._secim_indeksleri:
+                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
+                continue
+            if i in self._secim_indeksleri:
                 renkler.append(theme.MOR_VURGU)
-            elif i in self._vurgu_indeksleri:
+                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
+                continue
+            if i in self._vurgu_indeksleri:
                 renkler.append(theme.MAVI_VURGU)
-            elif i in fib_indeksleri:
-                renkler.append(theme.VURGU)
+                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
+                continue
+            # Ziyaret edilmiş düğümler için mod-bağımlı renk + boyut
+            if self._graf_modu:
+                if i in fib_indeksleri:
+                    renkler.append(theme.AKSAN)
+                    boyutlar.append(60)
+                else:
+                    renkler.append(theme.METIN_PASIF)
+                    boyutlar.append(12)
             else:
-                renkler.append(theme.METIN_ANA)
+                if i in fib_indeksleri:
+                    renkler.append(theme.VURGU)
+                else:
+                    renkler.append(theme.METIN_ANA)
+                boyutlar.append(10)
 
-        self._scatter = self._axes.scatter(xs, ys, s=10, c=renkler, zorder=2)
+        self._scatter = self._axes.scatter(
+            xs, ys, s=boyutlar, c=renkler,
+            edgecolors=(theme.ARKA_PLAN_KART if self._graf_modu else "none"),
+            linewidths=(0.8 if self._graf_modu else 0),
+            zorder=2,
+        )
 
         # Fibonacci etiketleri sadece yerleşmiş tohumlara
         for i in fib_indeksleri:
             if i > kare_no:
                 continue
             x, y = konumlar[i]
+            # Graf modunda etiket biraz daha okunur (büyük düğümün üstüne)
+            font_renk = theme.AKSAN_KOYU if self._graf_modu else "#555555"
+            font_boyut = 9 if self._graf_modu else 8
             self._axes.text(
-                x + 1.0, y + 1.0, str(i),
-                fontsize=8, color="#555555",
-                family="Georgia", zorder=3,
+                x + 1.5, y + 1.5, str(i),
+                fontsize=font_boyut, color=font_renk,
+                family="Georgia", zorder=4,
             )
 
         # Graf modu: yerleşmiş düğümler arasındaki kenarları ok başlı çiz
@@ -214,11 +251,10 @@ class SpiralCanvas(QWidget):
                 ok = FancyArrowPatch(
                     (x0, y0), (x1, y1),
                     arrowstyle="-|>",
-                    color=GRAF_KENAR_RENGI,
-                    linewidth=_kenar_kalinligi(w),
-                    mutation_scale=10,
-                    alpha=0.9,
-                    shrinkA=4, shrinkB=4,
+                    color=_kenar_rengi(w),
+                    linewidth=1.2,
+                    mutation_scale=9,
+                    shrinkA=6, shrinkB=6,
                     zorder=1,
                 )
                 self._axes.add_patch(ok)
