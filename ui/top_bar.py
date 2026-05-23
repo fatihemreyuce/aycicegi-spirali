@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QToolButton,
     QMenu,
     QFrame,
+    QComboBox,
 )
 
 from utils import ALTIN_ACI_DERECE
@@ -37,6 +38,7 @@ class TopBar(QWidget):
     cizim_istendi = Signal(int, float)
     animasyon_toggled = Signal(bool)
     yakinlastir_toggled = Signal(bool)
+    hiz_degisti = Signal(str)
     menu_eylemi = Signal(str)
 
     def __init__(self) -> None:
@@ -83,6 +85,15 @@ class TopBar(QWidget):
         self.animasyon_butonu.setCheckable(True)
         self.animasyon_butonu.toggled.connect(self.animasyon_toggled)
         duzen.addWidget(self.animasyon_butonu)
+
+        # Hız
+        duzen.addWidget(QLabel("Hız"))
+        self.hiz_kutu = QComboBox()
+        self.hiz_kutu.addItems(["Yavaş", "Normal", "Hızlı", "Anında"])
+        self.hiz_kutu.setCurrentText("Normal")
+        self.hiz_kutu.setFixedWidth(100)
+        self.hiz_kutu.currentTextChanged.connect(self.hiz_degisti)
+        duzen.addWidget(self.hiz_kutu)
 
         # Yakınlaştır
         self.yakinlastir_butonu = QToolButton()

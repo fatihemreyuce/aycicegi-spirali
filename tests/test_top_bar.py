@@ -4,7 +4,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton
+from PySide6.QtWidgets import QSpinBox, QDoubleSpinBox, QPushButton, QComboBox
 
 from ui.top_bar import TopBar
 from utils import ALTIN_ACI_DERECE
@@ -43,3 +43,21 @@ def test_topbar_ciz_clicked_sinyali_n_aci_yayar(qtbot):
     with qtbot.waitSignal(bar.cizim_istendi, timeout=500) as kayit:
         bar.ciz_butonu.click()
     assert kayit.args == [150, 140.0]
+
+
+def test_topbar_hiz_kutu_4_oge_default_normal(qtbot):
+    bar = TopBar()
+    qtbot.addWidget(bar)
+    assert isinstance(bar.hiz_kutu, QComboBox)
+    assert bar.hiz_kutu.count() == 4
+    ogeler = [bar.hiz_kutu.itemText(i) for i in range(4)]
+    assert ogeler == ["Yavaş", "Normal", "Hızlı", "Anında"]
+    assert bar.hiz_kutu.currentText() == "Normal"
+
+
+def test_topbar_hiz_degisimi_sinyal_yayar(qtbot):
+    bar = TopBar()
+    qtbot.addWidget(bar)
+    with qtbot.waitSignal(bar.hiz_degisti, timeout=500) as kayit:
+        bar.hiz_kutu.setCurrentText("Hızlı")
+    assert kayit.args == ["Hızlı"]
