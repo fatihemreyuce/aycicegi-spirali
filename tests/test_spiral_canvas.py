@@ -238,3 +238,36 @@ def test_secim_mavi_validator_uzerinde_oncelik(qtbot):
     canvas.secim_ekle(7)   # seçim → mor (öncelikli)
     renkler = _renk_listesi(canvas)
     assert renkler[7].lower() == theme.MOR_VURGU.lower()
+
+
+def test_graf_modu_kenarlar_eklenir(qtbot):
+    from matplotlib.patches import FancyArrowPatch
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.graf_modu_ac()
+    oklar = [p for p in canvas._axes.patches if isinstance(p, FancyArrowPatch)]
+    # 10 düğüm → 9 yönlü kenar
+    assert len(oklar) == 9
+    assert canvas.graf_modu_acik_mi() is True
+
+
+def test_graf_modu_kapat_kenarlari_temizler(qtbot):
+    from matplotlib.patches import FancyArrowPatch
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.graf_modu_ac()
+    canvas.graf_modu_kapat()
+    oklar = [p for p in canvas._axes.patches if isinstance(p, FancyArrowPatch)]
+    assert len(oklar) == 0
+    assert canvas.graf_modu_acik_mi() is False
+
+
+def test_graf_modu_acik_ikinci_kez_no_op(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.graf_modu_ac()
+    canvas.graf_modu_ac()  # idempotent olmalı
+    assert canvas.graf_modu_acik_mi() is True

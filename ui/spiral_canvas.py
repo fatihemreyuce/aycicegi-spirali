@@ -11,6 +11,7 @@ takip eden floating tooltip ileride ayrı bir alt-task olarak eklenebilir.
 """
 
 import math
+import time
 from typing import Optional
 
 import matplotlib
@@ -18,12 +19,29 @@ matplotlib.use("QtAgg")
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.patches import FancyArrowPatch
 from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 
 from fibonacci import fibonacci_dizisi
+from graph_builder import grafi_olustur
 from positioning import tum_konumlar
 from ui import theme
+
+
+# Graf modu sabitleri
+GRAF_KENAR_RENGI = "#d4b400"          # Aydınlık tema üzerinde okunur sarı
+GRAF_TOOLTIP_BG = "#1a2238"           # Lacivert
+GRAF_TOOLTIP_FG = "#fafaf7"           # Krem
+
+
+def _kenar_kalinligi(agirlik: float) -> float:
+    """Eşikler: w<1.6 ince, w<1.618 orta, ≥1.618 kalın."""
+    if agirlik < 1.6:
+        return 0.5
+    if agirlik < 1.618:
+        return 1.5
+    return 2.5
 
 
 def _fibonacci_indeks_kumesi(n: int) -> set[int]:
@@ -87,6 +105,14 @@ class SpiralCanvas(QWidget):
         self._press_data: Optional[tuple[float, float]] = None
         self._panning: bool = False
         self._pan_esik_px: float = 5.0
+
+        # Graf modu state
+        self._graf_modu: bool = False
+        self._G = None  # graf modunda networkx DiGraph
+        self._oklar: list = []  # (u, v, FancyArrowPatch) listesi
+        self._tooltip = None  # matplotlib.text.Text (graf modu)
+        self._son_motion_zamani: float = 0.0
+        self._motion_throttle_sn: float = 0.03
 
         self._eksenleri_hazirla()
 
@@ -162,7 +188,7 @@ class SpiralCanvas(QWidget):
             else:
                 renkler.append(theme.METIN_ANA)
 
-        self._scatter = self._axes.scatter(xs, ys, s=10, c=renkler, zorder=1)
+        self._scatter = self._axes.scatter(xs, ys, s=10, c=renkler, zorder=2)
 
         # Fibonacci etiketleri sadece yerleşmiş tohumlara
         for i in fib_indeksleri:
@@ -174,6 +200,43 @@ class SpiralCanvas(QWidget):
                 fontsize=8, color="#555555",
                 family="Georgia", zorder=3,
             )
+
+        # Graf modu: yerleşmiş düğümler arasındaki kenarları ok başlı çiz
+        self._oklar = []
+        if self._graf_modu and self._G is not None:
+            for u, v, veri in self._G.edges(data=True):
+                if u > kare_no or v > kare_no:
+                    continue
+                x0, y0 = konumlar[u]
+                x1, y1 = konumlar[v]
+                w = float(veri.get("agirlik", 0.0))
+                ok = FancyArrowPatch(
+                    (x0, y0), (x1, y1),
+                    arrowstyle="-|>",
+                    color=GRAF_KENAR_RENGI,
+                    linewidth=_kenar_kalinligi(w),
+                    mutation_scale=10,
+                    alpha=0.9,
+                    shrinkA=4, shrinkB=4,
+                    zorder=1,
+                )
+                self._axes.add_patch(ok)
+                self._oklar.append((u, v, ok))
+
+            # Tooltip artefaktı
+            self._tooltip = self._axes.text(
+                0, 0, "",
+                color=GRAF_TOOLTIP_FG, fontsize=10,
+                ha="left", va="bottom",
+                bbox=dict(
+                    boxstyle="round,pad=0.5",
+                    facecolor=GRAF_TOOLTIP_BG, edgecolor=GRAF_TOOLTIP_BG, alpha=0.95,
+                ),
+                zorder=10,
+            )
+            self._tooltip.set_visible(False)
+        else:
+            self._tooltip = None
 
         self._canvas.draw_idle()
 
@@ -194,11 +257,63 @@ class SpiralCanvas(QWidget):
         return en_yakin
 
     def _hover_handler(self, event) -> None:
+        # Mevcut InfoCard sinyali
         idx = self._en_yakin_nokta(event)
         if idx is None:
             self.nokta_hover_iptal.emit()
         else:
             self.nokta_hover.emit(idx)
+
+        # Graf modunda ek olarak tooltip göster (düğüm + kenar hit-test)
+        if self._graf_modu:
+            self._tooltip_guncelle(event)
+
+    def _tooltip_guncelle(self, event) -> None:
+        """Graf modu tooltip — throttled hit-test (düğüm önce, kenar sonra)."""
+        if self._tooltip is None:
+            return
+        if event.inaxes != self._axes or event.xdata is None or event.ydata is None:
+            if self._tooltip.get_visible():
+                self._tooltip.set_visible(False)
+                self._canvas.draw_idle()
+            return
+
+        simdi = time.perf_counter()
+        if simdi - self._son_motion_zamani < self._motion_throttle_sn:
+            return
+        self._son_motion_zamani = simdi
+
+        metin: Optional[str] = None
+
+        # 1) Düğüm hit-test
+        if self._scatter is not None:
+            ic, info = self._scatter.contains(event)
+            if ic and self._G is not None:
+                idx = int(info["ind"][0])
+                if idx in self._G.nodes:
+                    x, y = self._konumlar[idx]
+                    f_val = self._G.nodes[idx].get("fibonacci", 0)
+                    metin = f"v{idx} | F = {f_val} | konum ({x:.2f}, {y:.2f})"
+
+        # 2) Kenar hit-test
+        if metin is None and self._G is not None:
+            for u, v, ok in self._oklar:
+                ic, _ = ok.contains(event)
+                if ic:
+                    w = float(self._G[u][v].get("agirlik", 0.0))
+                    metin = f"v{u} → v{v} | w = {w:.4f}"
+                    break
+
+        if metin is not None:
+            self._tooltip.set_text(metin)
+            self._tooltip.set_position((event.xdata, event.ydata))
+            if not self._tooltip.get_visible():
+                self._tooltip.set_visible(True)
+            self._canvas.draw_idle()
+        else:
+            if self._tooltip.get_visible():
+                self._tooltip.set_visible(False)
+                self._canvas.draw_idle()
 
     # ---- Sığdır ----
 
@@ -387,3 +502,30 @@ class SpiralCanvas(QWidget):
         self._secim_indeksleri.clear()
         if self._konumlar:
             self._yeniden_ciz()
+
+    # ---- Graf modu (ana canvas üzerinde toggle) ----
+
+    def graf_modu_ac(self) -> None:
+        """Spiralin yönlü graf görünümünü aktive et — kenarlar + tooltip."""
+        if self._graf_modu:
+            return
+        self._graf_modu = True
+        # Mevcut n + α'dan grafı oluştur
+        if self._n > 0:
+            self._G = grafi_olustur(self._n, aci_radyan=math.radians(self._aci_derece))
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def graf_modu_kapat(self) -> None:
+        """Graf modunu kapat — kenarlar ve tooltip kaldırılır."""
+        if not self._graf_modu:
+            return
+        self._graf_modu = False
+        self._G = None
+        self._oklar = []
+        self._tooltip = None
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def graf_modu_acik_mi(self) -> bool:
+        return self._graf_modu
