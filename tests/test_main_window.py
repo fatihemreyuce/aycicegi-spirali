@@ -141,3 +141,13 @@ def test_main_window_gor_yakinsama_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["gor.yakinsama"]
     qtbot.addWidget(p)
     assert isinstance(p, YakinsamaPenceresi)
+
+
+def test_main_window_gor_karsilastirma_acinca_gercek_pencere(qtbot):
+    from ui.windows.comparison import KarsilastirmaPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("gor.karsilastirma")
+    p = pencere._pencere_yoneticisi._pencereler["gor.karsilastirma"]
+    qtbot.addWidget(p)
+    assert isinstance(p, KarsilastirmaPenceresi)
