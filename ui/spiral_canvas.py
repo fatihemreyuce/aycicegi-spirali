@@ -18,7 +18,7 @@ matplotlib.use("QtAgg")
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 
 from fibonacci import fibonacci_dizisi
@@ -45,6 +45,7 @@ class SpiralCanvas(QWidget):
     nokta_hover = Signal(int)
     nokta_hover_iptal = Signal()
     nokta_tiklandi = Signal(int)
+    animasyon_bitti = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -63,6 +64,12 @@ class SpiralCanvas(QWidget):
         self._fib_indeksleri: set[int] = set()
         # Statik scatter referansı — _kare_ciz tarafından kullanılır
         self._scatter = None
+        # Animasyon state
+        self._anim_kare: int = -1
+        self._anim_toplam: int = 0
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(False)
+        self._timer.timeout.connect(self._animasyon_tick)
 
         # Hover/click bağlantıları
         self._canvas.mpl_connect("motion_notify_event", self._hover_handler)
@@ -180,3 +187,67 @@ class SpiralCanvas(QWidget):
         idx = self._en_yakin_nokta(event)
         if idx is not None:
             self.nokta_tiklandi.emit(idx)
+
+    # ---- Animasyon ----
+
+    def animasyonu_basla(self, toplam_n: int, aci_derece: float, interval_ms: int) -> None:
+        """
+        Animasyonu başlatır. interval_ms <= 1 ise tek karede tüm tohumları çizer
+        ve animasyon_bitti sinyalini hemen yayar.
+        """
+        if self._timer.isActive():
+            self._timer.stop()
+
+        self._anim_toplam = toplam_n
+        self._aci_derece = aci_derece
+        self._anim_kare = -1
+
+        aci_radyan = math.radians(aci_derece)
+        self._konumlar = tum_konumlar(toplam_n, aci_radyan=aci_radyan)
+        self._fib_indeksleri = _fibonacci_indeks_kumesi(toplam_n)
+        self._n = toplam_n
+
+        # Anında modu
+        if interval_ms <= 1:
+            self._anim_kare = toplam_n - 1
+            self._kare_ciz(
+                kare_no=self._anim_kare,
+                toplam=toplam_n,
+                konumlar=self._konumlar,
+                fib_indeksleri=self._fib_indeksleri,
+            )
+            self.animasyon_bitti.emit()
+            return
+
+        # Sahneyi sıfırla (tüm tohumlar gri)
+        self._kare_ciz(
+            kare_no=-1,
+            toplam=toplam_n,
+            konumlar=self._konumlar,
+            fib_indeksleri=self._fib_indeksleri,
+        )
+
+        self._timer.setInterval(interval_ms)
+        self._timer.start()
+
+    def animasyonu_durdur(self) -> None:
+        """Animasyonu durdurur; sahne mevcut karede donar."""
+        if self._timer.isActive():
+            self._timer.stop()
+
+    def hiz_guncelle(self, interval_ms: int) -> None:
+        """Çalışan animasyonun interval'ını canlı günceller."""
+        self._timer.setInterval(interval_ms)
+
+    def _animasyon_tick(self) -> None:
+        """QTimer tick — bir sonraki kareyi yerleştir."""
+        self._anim_kare += 1
+        self._kare_ciz(
+            kare_no=self._anim_kare,
+            toplam=self._anim_toplam,
+            konumlar=self._konumlar,
+            fib_indeksleri=self._fib_indeksleri,
+        )
+        if self._anim_kare >= self._anim_toplam - 1:
+            self._timer.stop()
+            self.animasyon_bitti.emit()

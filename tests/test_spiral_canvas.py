@@ -70,3 +70,44 @@ def test_kare_ciz_son_kare_tam_spiral(qtbot):
             assert renkler[i].lower() == theme.VURGU.lower()
         else:
             assert renkler[i].lower() == theme.METIN_ANA.lower()
+
+
+def test_animasyonu_basla_aninda_modu_hemen_bitis_sinyali(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    with qtbot.waitSignal(canvas.animasyon_bitti, timeout=500):
+        canvas.animasyonu_basla(toplam_n=10, aci_derece=137.5, interval_ms=1)
+    # Anında modda tüm tohumlar yerleşmiş olmalı
+    assert canvas._anim_kare == 9
+
+
+def test_animasyonu_basla_kare_kare_ilerler(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    # 5 tohum × 50ms ≈ 250ms; 2 sn timeout yeterli
+    with qtbot.waitSignal(canvas.animasyon_bitti, timeout=2000):
+        canvas.animasyonu_basla(toplam_n=5, aci_derece=137.5, interval_ms=50)
+    assert canvas._anim_kare == 4
+
+
+def test_animasyonu_durdur_donar(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.animasyonu_basla(toplam_n=100, aci_derece=137.5, interval_ms=50)
+    # 1-2 tick işle ki kare ilerlesin
+    qtbot.wait(120)
+    canvas.animasyonu_durdur()
+    son_kare = canvas._anim_kare
+    qtbot.wait(200)
+    # Durdurduktan sonra kare ilerlememeli
+    assert canvas._anim_kare == son_kare
+
+
+def test_animasyonu_basla_hiz_canli_guncellenir(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.animasyonu_basla(toplam_n=20, aci_derece=137.5, interval_ms=500)
+    # Interval güncellenebilir olmalı
+    canvas.hiz_guncelle(interval_ms=50)
+    assert canvas._timer.interval() == 50
+    canvas.animasyonu_durdur()
