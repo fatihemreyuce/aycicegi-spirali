@@ -1,19 +1,21 @@
 """
 main.py
 -------
-Tüm modülleri birleştirip uygulamayı başlatan giriş noktası.
+PySide6 tabanlı yeni arayüzü başlatır.
 
 Çalıştırma:
     python main.py
+
+Eski Tkinter arayüzüne dönmek için: python main_legacy.py
 """
 
-from gui import uygulamayi_baslat
+import sys
+
+from ui.app import main as _ui_main
 
 
 def main() -> None:
-    """Uygulamayı başlat."""
-    # Tek satırlık bir başlangıç — tüm bileşenler gui.py içinde kuruluyor
-    uygulamayi_baslat()
+    sys.exit(_ui_main())
 
 
 if __name__ == "__main__":
