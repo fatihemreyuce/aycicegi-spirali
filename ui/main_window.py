@@ -15,6 +15,7 @@ from ui.windows.placeholder import PlaceholderWindow
 from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
 from ui.windows.convergence import YakinsamaPenceresi
 from ui.windows.comparison import KarsilastirmaPenceresi
+from ui.windows.seed_select import TohumSecimPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -121,10 +122,26 @@ class MainWindow(QMainWindow):
                 lambda: KarsilastirmaPenceresi(mevcut_n=self.top_bar.n_kutu.value()),
             )
             return
+        if eylem_id == "alg.tohum":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                self._tohum_secim_yarat,
+            )
+            return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,
             lambda: PlaceholderWindow(eylem_id, baslik),
         )
+
+    def _tohum_secim_yarat(self) -> TohumSecimPenceresi:
+        """TohumSecimPenceresi'ni mevcut n + α ile kur ve sinyalleri bağla."""
+        p = TohumSecimPenceresi(
+            mevcut_n=self.top_bar.n_kutu.value(),
+            aci_derece=self.top_bar.aci_kutu.value(),
+        )
+        p.tohum_secildi.connect(self.canvas.secim_ekle)
+        p.secim_temizle.connect(self.canvas.secim_temizle)
+        return p
 
     def _fibonacci_validator_yarat(self) -> FibonacciValidatorPenceresi:
         """FibonacciValidatorPenceresi'ni mevcut n ile kur ve sinyalleri bağla."""

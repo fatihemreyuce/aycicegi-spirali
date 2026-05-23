@@ -151,3 +151,24 @@ def test_main_window_gor_karsilastirma_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["gor.karsilastirma"]
     qtbot.addWidget(p)
     assert isinstance(p, KarsilastirmaPenceresi)
+
+
+def test_main_window_alg_tohum_acinca_gercek_pencere(qtbot):
+    from ui.windows.seed_select import TohumSecimPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("alg.tohum")
+    p = pencere._pencere_yoneticisi._pencereler["alg.tohum"]
+    qtbot.addWidget(p)
+    assert isinstance(p, TohumSecimPenceresi)
+
+
+def test_main_window_tohum_secildi_canvas_secim_ekler(qtbot):
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("alg.tohum")
+    p = pencere._pencere_yoneticisi._pencereler["alg.tohum"]
+    qtbot.addWidget(p)
+    p.giris_kutu.setText("21")
+    p.sec_butonu.click()
+    assert 21 in pencere.canvas._secim_indeksleri
