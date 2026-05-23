@@ -3,13 +3,13 @@ ui.main_window
 --------------
 Ana pencere: üst şerit + spiral canvas + bilgi kartı + pencere yöneticisi.
 
-Bu görevde sadece üst şerit yerleşti — canvas ve bilgi kartı sonraki
-görevlerde eklenecek.
+Bu görevde canvas yerleşti — bilgi kartı (InfoCard) Task 9'da eklenecek.
 """
 
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 
 from ui.top_bar import TopBar
+from ui.spiral_canvas import SpiralCanvas
 
 
 class MainWindow(QMainWindow):
@@ -28,4 +28,12 @@ class MainWindow(QMainWindow):
 
         self.top_bar = TopBar()
         duzen.addWidget(self.top_bar)
-        duzen.addStretch(1)  # canvas için yer ayır (Task 8'de doldurulur)
+
+        self.canvas = SpiralCanvas()
+        duzen.addWidget(self.canvas, 1)
+
+        # Çiz butonuna bağlan
+        self.top_bar.cizim_istendi.connect(self.canvas.spirali_ciz)
+
+        # İlk çizim
+        self.canvas.spirali_ciz(self.top_bar.n_kutu.value(), self.top_bar.aci_kutu.value())
