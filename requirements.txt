@@ -8,3 +8,9 @@ scipy>=1.10,<2.0
 
 # Geliştirme: birim testleri çalıştırmak için (unittest ile de çalışır)
 pytest>=7.0,<9.0
+
+# UI — PySide6 (Qt 6 Python bağlamaları)
+PySide6>=6.6,<7.0
+
+# UI testi — pytest fixture'ları (qtbot vb.)
+pytest-qt>=4.2,<5.0
