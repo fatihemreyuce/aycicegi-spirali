@@ -15,11 +15,7 @@ from ui.windows.placeholder import PlaceholderWindow
 from ui.windows.fibonacci_validator import FibonacciValidatorPenceresi
 from ui.windows.convergence import YakinsamaPenceresi
 from ui.windows.comparison import KarsilastirmaPenceresi
-from ui.windows.seed_select import TohumSecimPenceresi
 from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
-from ui.windows.traversal import GezintiPenceresi
-from ui.windows.dijkstra import DijkstraPenceresi
-from ui.windows.animation_control import AnimasyonKontrolPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -27,12 +23,8 @@ MENU_BASLIKLARI: dict[str, str] = {
     "graf.gorunum": "Graf Görünümü",
     "graf.matris": "Komşuluk Matrisi",
     "graf.validator": "Fibonacci Doğrulayıcı",
-    "alg.bfs_dfs": "BFS / DFS Gezinme",
-    "alg.dijkstra": "Dijkstra Kısa Yol",
-    "alg.tohum": "Tohum Seçimi",
     "gor.yakinsama": "Yakınsama Grafiği",
     "gor.karsilastirma": "Açı Karşılaştırma",
-    "gor.animasyon": "Animasyon Kontrol",
 }
 
 
@@ -126,12 +118,6 @@ class MainWindow(QMainWindow):
                 lambda: KarsilastirmaPenceresi(mevcut_n=self.top_bar.n_kutu.value()),
             )
             return
-        if eylem_id == "alg.tohum":
-            self._pencere_yoneticisi.ac_veya_one_getir(
-                eylem_id,
-                self._tohum_secim_yarat,
-            )
-            return
         if eylem_id == "graf.matris":
             self._pencere_yoneticisi.ac_veya_one_getir(
                 eylem_id,
@@ -148,56 +134,10 @@ class MainWindow(QMainWindow):
             else:
                 self.canvas.graf_modu_ac()
             return
-        if eylem_id == "alg.bfs_dfs":
-            self._pencere_yoneticisi.ac_veya_one_getir(
-                eylem_id,
-                lambda: GezintiPenceresi(
-                    mevcut_n=self.top_bar.n_kutu.value(),
-                    aci_derece=self.top_bar.aci_kutu.value(),
-                ),
-            )
-            return
-        if eylem_id == "alg.dijkstra":
-            self._pencere_yoneticisi.ac_veya_one_getir(
-                eylem_id,
-                lambda: DijkstraPenceresi(
-                    mevcut_n=self.top_bar.n_kutu.value(),
-                    aci_derece=self.top_bar.aci_kutu.value(),
-                ),
-            )
-            return
-        if eylem_id == "gor.animasyon":
-            self._pencere_yoneticisi.ac_veya_one_getir(
-                eylem_id,
-                self._animasyon_kontrol_yarat,
-            )
-            return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,
             lambda: PlaceholderWindow(eylem_id, baslik),
         )
-
-    def _tohum_secim_yarat(self) -> TohumSecimPenceresi:
-        """TohumSecimPenceresi'ni mevcut n + α ile kur ve sinyalleri bağla."""
-        p = TohumSecimPenceresi(
-            mevcut_n=self.top_bar.n_kutu.value(),
-            aci_derece=self.top_bar.aci_kutu.value(),
-        )
-        p.tohum_secildi.connect(self.canvas.secim_ekle)
-        p.secim_temizle.connect(self.canvas.secim_temizle)
-        return p
-
-    def _animasyon_kontrol_yarat(self) -> AnimasyonKontrolPenceresi:
-        """AnimasyonKontrolPenceresi'ni mevcut kare + n ile kur ve iki yönlü bağla."""
-        p = AnimasyonKontrolPenceresi(
-            toplam_n=self.canvas.toplam_kare(),
-            baslangic_kare=self.canvas.mevcut_kare(),
-        )
-        # Pencere → canvas: kareye atla
-        p.kareye_atla_istendi.connect(self.canvas.kareye_atla)
-        # Canvas → pencere: kare değişti (animasyon ya da başka pencere)
-        self.canvas.kare_degisti.connect(p.kareyi_guncelle)
-        return p
 
     def _fibonacci_validator_yarat(self) -> FibonacciValidatorPenceresi:
         """FibonacciValidatorPenceresi'ni mevcut n ile kur ve sinyalleri bağla."""

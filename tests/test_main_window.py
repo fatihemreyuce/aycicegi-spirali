@@ -140,27 +140,6 @@ def test_main_window_gor_karsilastirma_acinca_gercek_pencere(qtbot):
     assert isinstance(p, KarsilastirmaPenceresi)
 
 
-def test_main_window_alg_tohum_acinca_gercek_pencere(qtbot):
-    from ui.windows.seed_select import TohumSecimPenceresi
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("alg.tohum")
-    p = pencere._pencere_yoneticisi._pencereler["alg.tohum"]
-    qtbot.addWidget(p)
-    assert isinstance(p, TohumSecimPenceresi)
-
-
-def test_main_window_tohum_secildi_canvas_secim_ekler(qtbot):
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("alg.tohum")
-    p = pencere._pencere_yoneticisi._pencereler["alg.tohum"]
-    qtbot.addWidget(p)
-    p.giris_kutu.setText("21")
-    p.sec_butonu.click()
-    assert 21 in pencere.canvas._secim_indeksleri
-
-
 def test_main_window_graf_matris_acinca_gercek_pencere(qtbot):
     from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
     pencere = MainWindow()
@@ -169,46 +148,6 @@ def test_main_window_graf_matris_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["graf.matris"]
     qtbot.addWidget(p)
     assert isinstance(p, KomsulukMatrisiPenceresi)
-
-
-def test_main_window_alg_bfs_dfs_acinca_gercek_pencere(qtbot):
-    from ui.windows.traversal import GezintiPenceresi
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("alg.bfs_dfs")
-    p = pencere._pencere_yoneticisi._pencereler["alg.bfs_dfs"]
-    qtbot.addWidget(p)
-    assert isinstance(p, GezintiPenceresi)
-
-
-def test_main_window_alg_dijkstra_acinca_gercek_pencere(qtbot):
-    from ui.windows.dijkstra import DijkstraPenceresi
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("alg.dijkstra")
-    p = pencere._pencere_yoneticisi._pencereler["alg.dijkstra"]
-    qtbot.addWidget(p)
-    assert isinstance(p, DijkstraPenceresi)
-
-
-def test_main_window_gor_animasyon_acinca_gercek_pencere(qtbot):
-    from ui.windows.animation_control import AnimasyonKontrolPenceresi
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
-    p = pencere._pencere_yoneticisi._pencereler["gor.animasyon"]
-    qtbot.addWidget(p)
-    assert isinstance(p, AnimasyonKontrolPenceresi)
-
-
-def test_main_window_animasyon_kontrol_canvas_kareye_atlatir(qtbot):
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
-    p = pencere._pencere_yoneticisi._pencereler["gor.animasyon"]
-    qtbot.addWidget(p)
-    p.kare_kaydirici.setValue(42)
-    assert pencere.canvas.mevcut_kare() == 42
 
 
 def test_main_window_graf_gorunum_toggles_canvas(qtbot):

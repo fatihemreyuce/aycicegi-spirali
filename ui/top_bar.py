@@ -103,7 +103,7 @@ class TopBar(QWidget):
         # Sağa it
         duzen.addStretch(1)
 
-        # 3 menü
+        # 2 menü (Algoritma menüsü ve Görselleştir > Animasyon Kontrol kaldırıldı)
         self.graf_butonu = self._menu_butonu_yarat("Graf ▾", [
             ("graf.gorunum", "Graf Görünümü"),
             ("graf.matris", "Komşuluk Matrisi"),
@@ -111,17 +111,9 @@ class TopBar(QWidget):
         ])
         duzen.addWidget(self.graf_butonu)
 
-        self.algoritma_butonu = self._menu_butonu_yarat("Algoritma ▾", [
-            ("alg.bfs_dfs", "BFS / DFS Gezinme"),
-            ("alg.dijkstra", "Dijkstra Kısa Yol"),
-            ("alg.tohum", "Tohum Seçimi"),
-        ])
-        duzen.addWidget(self.algoritma_butonu)
-
         self.gorsel_butonu = self._menu_butonu_yarat("Görselleştir ▾", [
             ("gor.yakinsama", "Yakınsama Grafiği"),
             ("gor.karsilastirma", "Açı Karşılaştırma"),
-            ("gor.animasyon", "Animasyon Kontrol"),
         ])
         duzen.addWidget(self.gorsel_butonu)
 
