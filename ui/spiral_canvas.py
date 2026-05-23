@@ -64,6 +64,7 @@ class SpiralCanvas(QWidget):
     nokta_hover_iptal = Signal()
     nokta_tiklandi = Signal(int)
     animasyon_bitti = Signal()
+    kare_degisti = Signal(int)  # Manuel ya da otomatik kare ilerlemesi
 
     def __init__(self) -> None:
         super().__init__()
@@ -469,9 +470,46 @@ class SpiralCanvas(QWidget):
             konumlar=self._konumlar,
             fib_indeksleri=self._fib_indeksleri,
         )
+        self.kare_degisti.emit(self._anim_kare)
         if self._anim_kare >= self._anim_toplam - 1:
             self._timer.stop()
             self.animasyon_bitti.emit()
+
+    # ---- Manuel kare kontrolü (cross-window) ----
+
+    def kareye_atla(self, k: int) -> None:
+        """Belirli bir kareye atla (animasyon durdurulur)."""
+        if self._timer.isActive():
+            self._timer.stop()
+        toplam = len(self._konumlar)
+        if toplam == 0:
+            return
+        k = max(-1, min(toplam - 1, int(k)))
+        self._anim_kare = k
+        self._anim_toplam = toplam
+        self._kare_ciz(
+            kare_no=k,
+            toplam=toplam,
+            konumlar=self._konumlar,
+            fib_indeksleri=self._fib_indeksleri,
+        )
+        self.kare_degisti.emit(k)
+
+    def adim_at(self) -> None:
+        """Bir sonraki kareye geç."""
+        self.kareye_atla(self._anim_kare + 1)
+
+    def adim_geri(self) -> None:
+        """Bir önceki kareye geri dön."""
+        self.kareye_atla(self._anim_kare - 1)
+
+    def mevcut_kare(self) -> int:
+        """Mevcut animasyon kare numarası (-1 = sıfır pozisyon)."""
+        return self._anim_kare
+
+    def toplam_kare(self) -> int:
+        """Çizilen toplam kare sayısı (= n)."""
+        return len(self._konumlar)
 
     # ---- Validator vurgu (cross-window) ----
 

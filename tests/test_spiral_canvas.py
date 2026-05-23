@@ -271,3 +271,40 @@ def test_graf_modu_acik_ikinci_kez_no_op(qtbot):
     canvas.graf_modu_ac()
     canvas.graf_modu_ac()  # idempotent olmalı
     assert canvas.graf_modu_acik_mi() is True
+
+
+def test_kareye_atla_kare_degisti_yayilir(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(20, 137.5)
+    with qtbot.waitSignal(canvas.kare_degisti, timeout=500) as kayit:
+        canvas.kareye_atla(7)
+    assert kayit.args == [7]
+    assert canvas.mevcut_kare() == 7
+
+
+def test_kareye_atla_aralik_disi_clamp(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.kareye_atla(999)
+    assert canvas.mevcut_kare() == 9  # n-1
+
+
+def test_adim_at_ve_geri(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(10, 137.5)
+    canvas.kareye_atla(5)
+    canvas.adim_at()
+    assert canvas.mevcut_kare() == 6
+    canvas.adim_geri()
+    canvas.adim_geri()
+    assert canvas.mevcut_kare() == 4
+
+
+def test_toplam_kare_n_dondurur(qtbot):
+    canvas = SpiralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.spirali_ciz(42, 137.5)
+    assert canvas.toplam_kare() == 42
