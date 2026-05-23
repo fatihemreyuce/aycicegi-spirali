@@ -33,7 +33,7 @@ def figur_hazirla(figsize=(7, 7)) -> tuple[Figure, Axes]:
     fig: Figure = plt.figure(figsize=figsize, facecolor=ARKA_PLAN_RENGI)
     ax: Axes = fig.add_subplot(111)
     ax.set_facecolor(ARKA_PLAN_RENGI)
-    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
     return fig, ax
 

@@ -137,7 +137,7 @@ class SpiralAnimator:
         self.ax.clear()
         # figür_hazirla çağrılmış olabilir ama clear sonrası tekrar düzenleyelim
         self.ax.set_facecolor("#0b3d2e")
-        self.ax.set_aspect("equal", adjustable="datalim")
+        self.ax.set_aspect("equal", adjustable="box")
         self.ax.axis("off")
 
         if self.toplam == 0:

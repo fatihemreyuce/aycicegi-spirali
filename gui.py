@@ -124,7 +124,7 @@ class AyCicegiGUI:
         self.figure = Figure(figsize=(7, 7), facecolor="#0b3d2e")
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor("#0b3d2e")
-        self.ax.set_aspect("equal", adjustable="datalim")
+        self.ax.set_aspect("equal", adjustable="box")
         self.ax.axis("off")
 
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.orta_panel)

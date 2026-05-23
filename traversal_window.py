@@ -104,7 +104,7 @@ def traversal_penceresi_ac(parent: tk.Misc, G_spiral: nx.DiGraph) -> None:
     fig = Figure(figsize=(8, 6), facecolor=PANEL_BG)
     ax = fig.add_subplot(111)
     ax.set_facecolor(EKSEN_BG)
-    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
 
     canvas = FigureCanvasTkAgg(fig, master=pencere)

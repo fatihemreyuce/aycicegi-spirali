@@ -72,7 +72,7 @@ def karsilastirma_penceresi_ac(parent: tk.Misc) -> None:
 
     for ax in (ax_a, ax_b):
         ax.set_facecolor(EKSEN_BG)
-        ax.set_aspect("equal", adjustable="datalim")
+        ax.set_aspect("equal", adjustable="box")
         ax.axis("off")
 
     canvas = FigureCanvasTkAgg(fig, master=pencere)
@@ -81,7 +81,7 @@ def karsilastirma_penceresi_ac(parent: tk.Misc) -> None:
     def _spirali_ciz_axes(ax, aci_derece: float, n: int, baslik: str) -> None:
         ax.clear()
         ax.set_facecolor(EKSEN_BG)
-        ax.set_aspect("equal", adjustable="datalim")
+        ax.set_aspect("equal", adjustable="box")
         ax.axis("off")
         if n <= 0:
             return
