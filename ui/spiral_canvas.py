@@ -61,6 +61,8 @@ class SpiralCanvas(QWidget):
         self._aci_derece: float = 137.5
         self._konumlar: list[tuple[float, float]] = []
         self._fib_indeksleri: set[int] = set()
+        # Statik scatter referansı — _kare_ciz tarafından kullanılır
+        self._scatter = None
 
         # Hover/click bağlantıları
         self._canvas.mpl_connect("motion_notify_event", self._hover_handler)
@@ -90,23 +92,59 @@ class SpiralCanvas(QWidget):
         self._axes.set_facecolor(theme.ARKA_PLAN_KART)
 
     def _yeniden_ciz(self) -> None:
+        """Tam spirali tek karede çiz (mevcut davranış)."""
+        self._kare_ciz(
+            kare_no=len(self._konumlar) - 1,
+            toplam=len(self._konumlar),
+            konumlar=self._konumlar,
+            fib_indeksleri=self._fib_indeksleri,
+        )
+
+    def _kare_ciz(
+        self,
+        kare_no: int,
+        toplam: int,
+        konumlar: list[tuple[float, float]],
+        fib_indeksleri: set[int],
+    ) -> None:
+        """
+        kare_no (0-indeksli) son aktif tohum olacak şekilde sahneyi çizer.
+
+        Renk öncelik sırası:
+          0) index > kare_no   → BEKLEME (gri)
+          1) index == kare_no  → VURGU   (aktif, kırmızı)
+          2) index ∈ fib AND index < kare_no → VURGU (Fibonacci ziyaret edilmiş)
+          3) index < kare_no   → METIN_ANA (lacivert)
+        """
         self._axes.clear()
         self._eksenleri_hazirla()
 
-        if not self._konumlar:
+        if toplam == 0 or not konumlar:
+            self._scatter = None
             self._canvas.draw_idle()
             return
 
-        xs = [p[0] for p in self._konumlar]
-        ys = [p[1] for p in self._konumlar]
+        xs = [p[0] for p in konumlar]
+        ys = [p[1] for p in konumlar]
 
-        # Tüm noktalar — koyu lacivert
-        self._axes.scatter(xs, ys, s=8, c=theme.METIN_ANA, zorder=1)
+        renkler: list[str] = []
+        for i in range(toplam):
+            if i > kare_no:
+                renkler.append(theme.BEKLEME)
+            elif i == kare_no:
+                renkler.append(theme.VURGU)
+            elif i in fib_indeksleri:
+                renkler.append(theme.VURGU)
+            else:
+                renkler.append(theme.METIN_ANA)
 
-        # Fibonacci indeksli noktalar — kırmızı + etiket
-        for i in self._fib_indeksleri:
-            x, y = self._konumlar[i]
-            self._axes.scatter([x], [y], s=24, c=theme.VURGU, zorder=2)
+        self._scatter = self._axes.scatter(xs, ys, s=10, c=renkler, zorder=1)
+
+        # Fibonacci etiketleri sadece yerleşmiş tohumlara
+        for i in fib_indeksleri:
+            if i > kare_no:
+                continue
+            x, y = konumlar[i]
             self._axes.text(
                 x + 1.0, y + 1.0, str(i),
                 fontsize=8, color="#555555",
