@@ -19,6 +19,7 @@ from ui.windows.seed_select import TohumSecimPenceresi
 from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
 from ui.windows.traversal import GezintiPenceresi
 from ui.windows.dijkstra import DijkstraPenceresi
+from ui.windows.animation_control import AnimasyonKontrolPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -165,6 +166,12 @@ class MainWindow(QMainWindow):
                 ),
             )
             return
+        if eylem_id == "gor.animasyon":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                self._animasyon_kontrol_yarat,
+            )
+            return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,
             lambda: PlaceholderWindow(eylem_id, baslik),
@@ -178,6 +185,18 @@ class MainWindow(QMainWindow):
         )
         p.tohum_secildi.connect(self.canvas.secim_ekle)
         p.secim_temizle.connect(self.canvas.secim_temizle)
+        return p
+
+    def _animasyon_kontrol_yarat(self) -> AnimasyonKontrolPenceresi:
+        """AnimasyonKontrolPenceresi'ni mevcut kare + n ile kur ve iki yönlü bağla."""
+        p = AnimasyonKontrolPenceresi(
+            toplam_n=self.canvas.toplam_kare(),
+            baslangic_kare=self.canvas.mevcut_kare(),
+        )
+        # Pencere → canvas: kareye atla
+        p.kareye_atla_istendi.connect(self.canvas.kareye_atla)
+        # Canvas → pencere: kare değişti (animasyon ya da başka pencere)
+        self.canvas.kare_degisti.connect(p.kareyi_guncelle)
         return p
 
     def _fibonacci_validator_yarat(self) -> FibonacciValidatorPenceresi:

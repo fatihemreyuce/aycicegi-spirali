@@ -34,19 +34,6 @@ def test_main_window_info_card_n_degistirir(qtbot):
     assert "F(" in metin and "=" in metin
 
 
-def test_main_window_menu_tiklayinca_placeholder_acilir(qtbot):
-    pencere = MainWindow()
-    qtbot.addWidget(pencere)
-    # gor.animasyon hâlâ placeholder (son port bekliyor)
-    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
-    yonetici = pencere._pencere_yoneticisi
-    assert "gor.animasyon" in yonetici._pencereler
-    p1 = yonetici._pencereler["gor.animasyon"]
-    qtbot.addWidget(p1)
-    # İkinci kez tıkla — aynı instance olmalı
-    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
-    p2 = yonetici._pencereler["gor.animasyon"]
-    assert p1 is p2
 
 
 def test_main_window_animasyon_butonu_canvas_animasyonu_baslatir(qtbot):
@@ -202,6 +189,26 @@ def test_main_window_alg_dijkstra_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["alg.dijkstra"]
     qtbot.addWidget(p)
     assert isinstance(p, DijkstraPenceresi)
+
+
+def test_main_window_gor_animasyon_acinca_gercek_pencere(qtbot):
+    from ui.windows.animation_control import AnimasyonKontrolPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
+    p = pencere._pencere_yoneticisi._pencereler["gor.animasyon"]
+    qtbot.addWidget(p)
+    assert isinstance(p, AnimasyonKontrolPenceresi)
+
+
+def test_main_window_animasyon_kontrol_canvas_kareye_atlatir(qtbot):
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
+    p = pencere._pencere_yoneticisi._pencereler["gor.animasyon"]
+    qtbot.addWidget(p)
+    p.kare_kaydirici.setValue(42)
+    assert pencere.canvas.mevcut_kare() == 42
 
 
 def test_main_window_graf_gorunum_toggles_canvas(qtbot):
