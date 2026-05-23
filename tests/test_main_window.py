@@ -37,15 +37,15 @@ def test_main_window_info_card_n_degistirir(qtbot):
 def test_main_window_menu_tiklayinca_placeholder_acilir(qtbot):
     pencere = MainWindow()
     qtbot.addWidget(pencere)
-    # alg.dijkstra hâlâ placeholder (sonraki port bekliyor)
-    pencere.top_bar.menu_eylemi.emit("alg.dijkstra")
+    # gor.animasyon hâlâ placeholder (son port bekliyor)
+    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
     yonetici = pencere._pencere_yoneticisi
-    assert "alg.dijkstra" in yonetici._pencereler
-    p1 = yonetici._pencereler["alg.dijkstra"]
+    assert "gor.animasyon" in yonetici._pencereler
+    p1 = yonetici._pencereler["gor.animasyon"]
     qtbot.addWidget(p1)
     # İkinci kez tıkla — aynı instance olmalı
-    pencere.top_bar.menu_eylemi.emit("alg.dijkstra")
-    p2 = yonetici._pencereler["alg.dijkstra"]
+    pencere.top_bar.menu_eylemi.emit("gor.animasyon")
+    p2 = yonetici._pencereler["gor.animasyon"]
     assert p1 is p2
 
 
@@ -192,6 +192,16 @@ def test_main_window_alg_bfs_dfs_acinca_gercek_pencere(qtbot):
     p = pencere._pencere_yoneticisi._pencereler["alg.bfs_dfs"]
     qtbot.addWidget(p)
     assert isinstance(p, GezintiPenceresi)
+
+
+def test_main_window_alg_dijkstra_acinca_gercek_pencere(qtbot):
+    from ui.windows.dijkstra import DijkstraPenceresi
+    pencere = MainWindow()
+    qtbot.addWidget(pencere)
+    pencere.top_bar.menu_eylemi.emit("alg.dijkstra")
+    p = pencere._pencere_yoneticisi._pencereler["alg.dijkstra"]
+    qtbot.addWidget(p)
+    assert isinstance(p, DijkstraPenceresi)
 
 
 def test_main_window_graf_gorunum_toggles_canvas(qtbot):

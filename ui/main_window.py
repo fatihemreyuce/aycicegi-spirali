@@ -18,6 +18,7 @@ from ui.windows.comparison import KarsilastirmaPenceresi
 from ui.windows.seed_select import TohumSecimPenceresi
 from ui.windows.adjacency_matrix import KomsulukMatrisiPenceresi
 from ui.windows.traversal import GezintiPenceresi
+from ui.windows.dijkstra import DijkstraPenceresi
 
 
 # Menü eylem kimliği → kullanıcıya gösterilecek başlık
@@ -150,6 +151,15 @@ class MainWindow(QMainWindow):
             self._pencere_yoneticisi.ac_veya_one_getir(
                 eylem_id,
                 lambda: GezintiPenceresi(
+                    mevcut_n=self.top_bar.n_kutu.value(),
+                    aci_derece=self.top_bar.aci_kutu.value(),
+                ),
+            )
+            return
+        if eylem_id == "alg.dijkstra":
+            self._pencere_yoneticisi.ac_veya_one_getir(
+                eylem_id,
+                lambda: DijkstraPenceresi(
                     mevcut_n=self.top_bar.n_kutu.value(),
                     aci_derece=self.top_bar.aci_kutu.value(),
                 ),
