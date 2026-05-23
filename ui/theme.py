@@ -25,6 +25,7 @@ METIN_PASIF: str = "#888888"
 AKSAN: str = "#1a4480"               # Oxford lacivert — vurgu, başlık altı
 AKSAN_KOYU: str = "#142f5c"          # hover/pressed
 VURGU: str = "#b8242a"               # Fibonacci noktaları — uyarı kırmızısı
+BEKLEME: str = "#7d7d7d"             # Animasyon sırasında henüz yerleşmemiş tohum
 
 
 # ---- Tipografi ----
