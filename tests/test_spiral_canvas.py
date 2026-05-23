@@ -113,27 +113,15 @@ def test_animasyonu_basla_hiz_canli_guncellenir(qtbot):
     canvas.animasyonu_durdur()
 
 
-def test_sigdir_xlim_ylim_yeniden_ayarlar(qtbot):
-    canvas = SpiralCanvas()
-    qtbot.addWidget(canvas)
-    canvas.spirali_ciz(100, 137.5)
-    # Manuel olarak xlim/ylim'i bozulmuş bir aralığa ayarla
-    canvas._axes.set_xlim(-1000, 1000)
-    canvas._axes.set_ylim(-1000, 1000)
-    canvas.sigdir()
-    xmin, xmax = canvas._axes.get_xlim()
-    ymin, ymax = canvas._axes.get_ylim()
-    assert (xmax - xmin) < 200
-    assert (ymax - ymin) < 200
-
-
 def test_scroll_event_xlim_daraltir(qtbot):
     """Scroll-in (zoom in) xlim aralığını daraltır, imleç-merkezli."""
     from unittest.mock import MagicMock
     canvas = SpiralCanvas()
     qtbot.addWidget(canvas)
     canvas.spirali_ciz(100, 137.5)
-    canvas.sigdir()
+    # Bilinen başlangıç viewport
+    canvas._axes.set_xlim(-50, 50)
+    canvas._axes.set_ylim(-50, 50)
     xmin0, xmax0 = canvas._axes.get_xlim()
     aralik0 = xmax0 - xmin0
     event = MagicMock()
@@ -153,7 +141,8 @@ def test_pan_press_motion_release_xlim_kaydirir(qtbot):
     canvas = SpiralCanvas()
     qtbot.addWidget(canvas)
     canvas.spirali_ciz(100, 137.5)
-    canvas.sigdir()
+    canvas._axes.set_xlim(-50, 50)
+    canvas._axes.set_ylim(-50, 50)
     xmin0, xmax0 = canvas._axes.get_xlim()
 
     press = MagicMock()

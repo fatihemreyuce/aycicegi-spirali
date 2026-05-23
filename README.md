@@ -1,14 +1,14 @@
-# 🌻 Ayçiçeği Spirali: Altın Oran ve Graflar Üzerine Matematiksel Bir İnceleme
+# 🌻 Ayçiçeği Spirali — Fibonacci, Altın Oran ve Graflarla Bir Matematiksel İnceleme
 
-> Doğanın en zarif geometrik desenlerinden birini — ayçiçeği başındaki tohum dizilimini — Fibonacci dizisi, altın oran ve yönlü graflar üzerinden modelleyen bir Python simülasyonu.
+> Doğanın en zarif geometrik desenlerinden birini — ayçiçeği başındaki tohum dizilimini — Fibonacci dizisi, altın açı (Vogel formülü) ve yönlü graflar üzerinden modelleyen, PySide6 tabanlı etkileşimli bir Python uygulaması.
 
-![Python](https://img.shields.io/badge/python-3.13%2B-blue) ![License](https://img.shields.io/badge/license-Eğitim-yellow) ![Status](https://img.shields.io/badge/proje-Dönem%20Projesi-success)
+![Python](https://img.shields.io/badge/python-3.13%2B-blue) ![Qt](https://img.shields.io/badge/Qt-PySide6-success) ![License](https://img.shields.io/badge/license-Eğitim-yellow) ![Status](https://img.shields.io/badge/proje-Dönem%20Projesi-blue)
 
 ---
 
-## 📖 Proje Hakkında
+## 📌 Bu Proje Nedir?
 
-Bu proje, **ayçiçeği başındaki tohum dizilimini** matematiksel olarak modelleyip görselleştiren etkileşimli bir simülasyondur. Tohumların **Vogel formülü** ile yerleştirildiği konumlarda **altın açı (≈ 137.5°)** kullanılarak ortaya çıkan spiral desen, **Fibonacci dizisinin ardışık oranlarının altın orana yakınsamasıyla** doğrudan ilişkilidir. Tüm yapı — tohumlar, komşuluk ilişkileri ve geometrik kenar ağırlıkları — bir **yönlü graf (DiGraph)** olarak modellenmiştir.
+Bu, **ayçiçeği başındaki tohum dizilimini matematiksel olarak modelleyip görselleştiren** bir masaüstü uygulamadır. Tohumlar **Vogel formülü** ile yerleştirilir; ardışık tohumlar arasındaki açı sabit (altın açı ≈ 137.5077°) tutulduğunda, doğada gördüğümüz ile birebir aynı sıkı paketlenmiş spiral desen ortaya çıkar. Bu desen Fibonacci dizisinin altın orana yakınsamasıyla doğrudan ilişkilidir; uygulama bu ilişkiyi hem görsel hem de yapısal (graf modeli, yakınsama grafiği, komşuluk matrisi) olarak inceler.
 
 🎓 **İstanbul Gedik Üniversitesi — Ayrık Matematik Dersi Dönem Projesi**
 
@@ -25,11 +25,19 @@ Bu proje, **ayçiçeği başındaki tohum dizilimini** matematiksel olarak model
 
 ---
 
-## 🧮 Matematiksel Temel
+## 🎯 Neden Bu Proje?
 
-### ✨ Altın Oran (φ)
+Çoğu kişi "altın oran" ile "Fibonacci dizisi"ni duymuştur ama bunların **neden** bir ayçiçeğinin başında karşımıza çıktığını sezgisel olarak görmek zordur. Bu projenin amacı:
 
-Altın oran, kendisiyle bir uzunluk arasındaki oranın, o uzunlukla farkları arasındaki orana eşit olduğu eşsiz pozitif sayıdır:
+1. **Soyut matematiği elle tutulur hâle getirmek.** Bir kaydırıcıyı oynatınca altın açının neden 137° değil de **tam olarak 137.5077°** olması gerektiği görsel olarak anlaşılır: 0.1°'lik bir sapma bile spiralin "bozulmasına" yol açar.
+2. **Süreksiz matematiğin (Ayrık Matematik) gerçek hayata bağlanışını göstermek.** Tohumlar düğüm, komşuluklar yönlü kenar, kenar ağırlığı Fibonacci oranı olarak modellenir — yani fizikteki ve doğadaki bir desen tamamen bir grafa indirgenir. Komşuluk Matrisi ekranı bu eşlemeyi sayısal olarak da görünür kılar.
+3. **Bir matematik teoreminin doğa ile tutarlılığını test etmek.** F(n+1) / F(n) → φ yakınsamasını canlı bir grafikte görmek; sonra aynı oranın spiraldeki kenarları nasıl φ'ye yakınlaştırdığını fark etmek — bunlar tek bir uygulama içinde birleşince eğitsel etkisi büyür.
+
+---
+
+## 🧮 Matematiksel Arka Plan (Özet)
+
+### Altın Oran (φ)
 
 ```
        1 + √5
@@ -37,100 +45,76 @@ Altın oran, kendisiyle bir uzunluk arasındaki oranın, o uzunlukla farkları a
           2
 ```
 
-Doğada salyangoz kabuklarından galaksilere, sanat eserlerinden mimari tasarımlara kadar tekrar eden bu oran, projemizin merkezinde durur.
-
-### 🔢 Fibonacci Dizisi ve Binet Formülü
-
-Klasik özyineli tanım:
+### Fibonacci Dizisi ve φ'ye Yakınsama
 
 ```
-F(0) = 0,   F(1) = 1,   F(n) = F(n−1) + F(n−2)
+F(0)=0,  F(1)=1,  F(n) = F(n−1) + F(n−2)
+0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, ...
+
+lim  F(n+1)/F(n)  =  φ        (n → ∞)
 ```
 
-İlk birkaç terim: `0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, ...`
-
-Kapalı form (Binet formülü):
-
-```
-                φⁿ − ψⁿ                         1 − √5
-F(n)  =  ─────────────── ,         ψ  =  ───────────  ≈ −0.6180...
-                  √5                              2
-```
-
-Önemli özellik: ardışık iki Fibonacci'nin oranı altın orana yakınsar:
-
-```
-       F(n+1)
-lim   ────────  =  φ
-n→∞    F(n)
-```
-
-### 📐 Altın Açı (137.5077°)
-
-Bir tam çemberi altın orana göre bölersek:
+### Altın Açı (137.5077°)
 
 ```
 α  =  360°  ×  (1 − 1/φ)  ≈  137.5077640500378°
 ```
 
-Bu açı **irrasyoneldir**; dolayısıyla peş peşe yerleştirilen tohumlar **hiçbir zaman aynı doğrultuya hizalanmaz**. Sonuç: optimum sıkışıklığa sahip, eşsiz bir spiral.
+Bu açı **irrasyoneldir** — peş peşe yerleştirilen tohumlar hiçbir zaman aynı doğrultuya hizalanmaz. Sonuç: hiçbir yönde "ışınsal boşluk" oluşmadan, alan başına maksimum tohum sıkışıklığı. Doğanın bu açıyı seçmesi tesadüf değil — milyonlarca yıllık evrimsel optimizasyondur.
 
-### 🕸️ Graf Modeli  G = (V, E, f, w)
-
-| Bileşen | Anlamı |
-|---|---|
-| `V` | Düğüm (tohum) kümesi: `{v₀, v₁, ..., v_{n−1}}` |
-| `E` | Yönlü kenar kümesi: `{(vᵢ, vᵢ₊₁) \| 0 ≤ i < n−1}` |
-| `f: V → ℝ³` | Düğüm öznitelik fonksiyonu: `f(vᵢ) = (i, F(i), xᵢ, yᵢ)` |
-| `w: E → ℝ` | Kenar ağırlığı: `w(vᵢ, vᵢ₊₁) = F(i+1) / F(i)` → φ |
-
-### 🌀 Vogel Formülü (Tohum Yerleşimi)
-
-Helmut Vogel (1979), ayçiçeği desenini şu basit kutupsal denklemle modelledi:
+### Vogel Formülü — Tohum Yerleşimi
 
 ```
 xᵢ  =  c · √i · cos(i · α)
 yᵢ  =  c · √i · sin(i · α)
 ```
 
-Burada `c` ölçek sabiti (projemizde `c = 4`), `α` altın açıdır. Yarıçapın √i ile büyümesi, **alan başına düşen tohum yoğunluğunu** sabit tutar.
+`√i` ile büyüyen yarıçap, **alan başına düşen tohum yoğunluğunu** sabit tutar (eşit-alan kuralı).
+
+### Graf Modeli  G = (V, E, f, w)
+
+| Bileşen | Anlamı |
+|---|---|
+| `V` | Düğüm (tohum) kümesi: `{v₀, v₁, ..., v_{n−1}}` |
+| `E` | Yönlü kenar kümesi: `{(vᵢ, vᵢ₊₁) \| 0 ≤ i < n−1}` |
+| `f: V → ℝ⁴` | Düğüm özniteliği: `f(vᵢ) = (i, F(i), xᵢ, yᵢ)` |
+| `w: E → ℝ` | Kenar ağırlığı: `w(vᵢ, vᵢ₊₁) = F(i+1) / F(i)`  → φ |
+
+Tüm bu yapı NetworkX'in `DiGraph` sınıfı üzerine inşa edilmiştir; dolayısıyla projenin matematiksel modeli aynı zamanda **çalıştırılabilir bir veri yapısıdır**.
 
 ---
 
-## 📁 Proje Yapısı
+## 🌍 Günümüzde Nerede İşimize Yarar?
 
-Proje **çekirdek + analiz pencereleri + testler** olarak üç katmanda organize edilmiştir:
+"Bir öğrenci projesi" olarak basit görünebilir; ama altın açıya dayalı paketleme ve Fibonacci tabanlı modelleme bugün **gerçek üretim mühendisliğinde** kullanılan tekniklerdir:
 
-### 🧩 Çekirdek modüller
+### 🌱 Biyomimikri & Tarım
 
-| 📄 Dosya | 🎯 Sorumluluk |
-|---|---|
-| `fibonacci.py` | İteratif Fibonacci dizisi üretimi, tek değer hesabı, büyük sayı bilimsel notasyon biçimleyici |
-| `utils.py` | Altın oran/açı sabitleri, ardışık oran, \|oran−φ\| farkı, Öklid mesafesi |
-| `positioning.py` | Vogel formülünü uygulayıp tohum koordinatlarını üretir (`c=4` ölçek, açı parametrik) |
-| `graph_builder.py` | NetworkX `DiGraph` inşası — düğüm öznitelikleri ve `agirlik = F(i+1)/F(i)` kenarları |
-| `validator.py` | Bir sayının Fibonacci olup olmadığını test eder (matematiksel + dizide arama), en yakın iki Fibonacci'yi bulur |
-| `visualizer.py` | matplotlib ile statik spiral çizimi (koyu yeşil arka plan, sarı tohumlar) |
-| `animator.py` | `FuncAnimation` ile tohum-tohum yerleştirme; aktif/ziyaret/bekleme/seçili renk durumları |
-| `graph_traversal.py` | BFS / DFS gezinti algoritmaları — undirected üzerinde, kararlı sıralama |
-| `gui.py` | tkinter arayüzü: kontroller, canvas, canlı bilgi paneli, tohum tıklama |
-| `main.py` | Tüm modülleri birleştiren giriş noktası |
+- **Güneş tarlalarında panel dizilimi:** MIT'de 2011'de Aidan Dwyer'ın yaptığı ünlü deney, ayçiçeği spirali deseninde dizilmiş güneş panellerinin geleneksel dikey dizilime göre daha az alanda daha yüksek verim verdiğini gösterdi. Geometrik prensip bu uygulamadakiyle aynıdır.
+- **Tohum-ekim planlaması:** Hassas tarım sistemlerinde fide aralıklarını ışık ve su rekabetini en aza indirecek şekilde belirlerken Vogel-tipi dağılım baz alınır.
 
-### 🪟 Analiz pencereleri (Toplevel)
+### 🏛️ Mimari & Tasarım
 
-| 📄 Dosya | 🎯 Sorumluluk |
-|---|---|
-| `convergence_plot.py` | F(i+1)/F(i) → φ yakınsama grafiği — log skala alt grafik ile |
-| `comparison_window.py` | İki açıyı yan yana karşılaştırma (137.5° vs 90° vb. presetler) |
-| `traversal_window.py` | BFS/DFS animasyonu — Spiral ve Delaunay graf seçenekli |
-| `dijkstra_window.py` | Kaynak/hedef arası en kısa yol — yol kenarları kırmızı çizgi |
+- **Cephe panel düzenleri:** Frank Lloyd Wright'tan modern parametrik mimariye (Zaha Hadid, Foster + Partners) kadar altın oran tabanlı modüler cephe paneli yerleşimi, hem estetik hem de strüktürel yük dağılımı için kullanılır.
+- **Endüstriyel ürün tasarımı:** Kamera lens diyafram bıçakları, türbin kanat yerleşimi, mikrofon dizi düzeni — hepsi optimum açısal aralık için Fibonacci/golden-angle yaklaşımlarından yararlanır.
 
-### 🧪 Testler ve yapılandırma
+### 💻 Bilgisayar Bilimi
 
-| 📄 Dosya | 🎯 Sorumluluk |
-|---|---|
-| `tests/` | 45 unittest — fibonacci, validator, positioning, utils, graph_builder, graph_traversal |
-| `requirements.txt` | Bağımlılık listesi (versiyon aralıkları sabitlenmiş) |
+- **Veri görselleştirme:** Veri noktalarının çakışmadan görüntülendiği "sunflower plots" (R, ggplot2, Bokeh içinde bulunur) doğrudan bu desenden gelir.
+- **Pseudo-random sampling:** Monte Carlo simülasyonlarında ve render motorlarında (örn. Cycles, Arnold) gürültü dağılımı için altın açı sampling'i tercih edilir — düzenli ızgaradan daha iyi kapsama sağlar.
+- **Graf algoritmaları için referans yapı:** Bu projenin kendisi (spiral graf + Dijkstra ağırlıkları φ'ye yakınsar) algoritma derslerinde "deterministik ama önemsiz olmayan" bir test grafı olarak kullanılabilir.
+
+### 🧬 Biyoloji & Tıp
+
+- **Phyllotaxis modelleme:** Bitki dallanma desenlerini tahmin eden modeller (Mitchison 1977, Jean 1994) bu projedeki Vogel formülünün doğrudan türevidir. İlaç keşfinde bitkilerin yaprak rozet yapısını analiz ederken kullanılır.
+- **Tıbbi görüntüleme:** Retina'daki koni hücreleri ve fundus damar dağılımı analizi sunflower deseni referansına dayanır.
+
+### 🎨 Yaratıcı Endüstri
+
+- **Generative art / NFT projeleri:** Phi-tabanlı kompozisyon kuralı modern jeneratif sanat eserlerinde temel bir yapıtaşıdır.
+- **Oyun haritası prosedürel üretimi:** Düz ızgara yerine altın açı dağılımı ile yerleştirilen kaynaklar/düşmanlar oyunculara daha "organik" hissettirir.
+
+> 💡 **Özetle:** Bu proje, "matematik niye okuyoruz?" sorusunun somut bir cevabı. Bir öğrencinin kavradığı altın açı, on yıl sonra bir güneş tarlasının verimliliğini, bir mimari cephenin dağılımını ya da bir bilimsel görselleştirmenin okunabilirliğini doğrudan etkileyebilir.
 
 ---
 
@@ -138,150 +122,139 @@ Proje **çekirdek + analiz pencereleri + testler** olarak üç katmanda organize
 
 ### 🐍 1. Önkoşul: Python 3.13+
 
-Sisteminizde Python 3.13 veya üzeri kurulu olmalıdır:
-
 ```bash
 python --version
 # Python 3.13.x bekleniyor
 ```
 
-Yoksa: <https://www.python.org/downloads/> adresinden indirin.
+Yoksa: <https://www.python.org/downloads/>
 
-### 📦 2. Bağımlılıkların Kurulumu
-
-`requirements.txt` üzerinden:
+### 📦 2. Bağımlılıkları Yükle
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Veya tek satırda — **çekirdek bağımlılıklar** zorunlu, `scipy` ile `pytest` opsiyoneldir:
+İçinde: `matplotlib`, `networkx`, `numpy`, `scipy`, `PySide6`, `pytest`, `pytest-qt`.
 
-```bash
-pip install matplotlib networkx numpy           # zorunlu
-pip install scipy                                # opsiyonel: BFS/DFS & Dijkstra'da Delaunay graf seçeneği
-pip install pytest                               # opsiyonel: pytest çalıştırmak isteyenler için
-```
-
-> 💡 `tkinter` Windows ve macOS için Python ile birlikte gelir. Linux'ta gerekirse: `sudo apt install python3-tk`.
-
-### ▶️ 3. Çalıştırma
-
-#### Yeni PySide6 arayüzü (varsayılan)
+### ▶️ 3. Çalıştır
 
 ```bash
 python main.py
 ```
 
-GUI penceresi açılınca üst şeritten **n** ve **α** değerlerini ayarlayıp **Çiz**'e basarak spirali izleyebilirsiniz; Fibonacci indeksli tohumlar kırmızı vurgu ile gösterilir, sağ-üst InfoCard anlık F oranını verir.
-
-#### Eski Tkinter arayüzü (yedek)
-
-PySide6 portu hâlâ devam ettiğinden, tüm analiz pencerelerine sahip eski Tkinter arayüzü geri-dönüş yolu olarak korunuyor:
-
-```bash
-python main_legacy.py
-```
+Açılışta 1280×800 pencerede 100 tohumlu altın açı spirali görünür; Fibonacci indeksli tohumlar (1, 2, 3, 5, 8, 13, 21, 34, 55, 89) **kırmızı vurgu** alır.
 
 ### 🧪 4. Testler (opsiyonel)
 
-Birim testler hem `unittest` hem `pytest` ile çalışır:
-
 ```bash
-python -m unittest discover -s tests       # Python ile birlikte gelir, ek kurulum yok
-pytest                                      # pytest yüklüyse — daha okunaklı çıktı
+pytest -v
 ```
 
-> Beklenen çıktı: **45 test, hepsi yeşil**.
+> Beklenen: 100+ test, hepsi yeşil.
+
+> **Eski Tkinter arayüzü** (yedek): `python main_legacy.py`. PySide6 portu öncesi kapsamlı versiyondur; bazı eski analiz pencereleri (Algoritma menüsü) burada hâlâ mevcuttur.
 
 ---
 
-## 🎮 Kullanım
+## 🖱️ Arayüz Rehberi
 
-### 🎚️ n Kaydırıcısı
+### Üst Şerit (TopBar)
 
-Çizilecek tohum sayısını belirler. Aralık: **50 – 2000**. Yanındaki **Entry kutusuna** elle de değer girilebilir (örneğin `1000` yazıp Enter'a basın); kaydırıcı ile çift yönlü senkronize olur.
+```
+[ n ][ α ][ Çiz ] | [ ▶ Animasyon ][ Hız: Normal ▾ ] | [ Graf ▾ ][ Görselleştir ▾ ]
+```
 
-| n değeri | Beklenen görünüm |
+| Kontrol | İşlevi |
 |---|---|
-| 50–100 | Genç ayçiçeği — belirgin 13 ↔ 21 spiraller |
-| 100–300 | Olgun ayçiçeği — 21 ↔ 34 / 34 ↔ 55 |
-| 500+ | Yoğun, gerçekçi ayçiçeği başı |
+| **n** | Çizilecek tohum sayısı (50 – 2000). |
+| **α** | Açı (°). Varsayılan 137.5077° (altın açı). 30°–180° arası kabul edilir. |
+| **Çiz** | Mevcut n + α ile spirali yeniden çizer. Animasyon çalışıyorsa iptal edip anında tam spirali gösterir. |
+| **▶ Animasyon** | Tohumları tek tek yerleştirerek spirali kurar. Hız combo ile canlı ayarlanır. |
+| **Hız** | Yavaş (500ms) / Normal (200ms) / Hızlı (50ms) / Anında (tek karede). Animasyon sırasında bile canlı değişir. |
 
-### 🔄 Açı Kaydırıcısı (30°–180°)
+### Sağ-üst Bilgi Kartı (InfoCard)
 
-Spiralin sırrı **tek bir sayıda**: altın açı. Sol panelde **canlı bir açı slider'ı** vardır — kaydırıcıyla veya yanındaki Entry kutusuyla 30°–180° arasında istediğiniz değeri girebilir, **🌟 Altın açıya dön** butonuyla varsayılana hızlıca dönebilirsiniz.
+Krem bir overlay olarak spiralin sağ-üst köşesinde durur. Her zaman:
+- En son çizilen n için **F(k)** değeri
+- **F(k) / F(k-1)** oranı ve bu oranın φ'den **|Δ|** sapması
+- Mouse'un üzerinde olduğu **seçili tohum** indeksi
 
-| Açı | Sonuç |
-|---|---|
-| **137.5077°** (irrasyonel) | ✅ Optimum spiral, çakışma yok |
-| 137.0° / 138.0° | ❌ Gözle görülür "boşluklar" oluşur |
-| 90° / 60° / 45° | ❌ Hizalı ışınlar, spiral kaybolur |
-
-> 💡 Açının önemini somut olarak görmek için **⚖️ Açı Karşılaştırma** penceresini açın — iki açıyı yan yana çizip farkı doğrudan kıyaslayabilirsiniz.
-
-### 🔎 Validator
-
-Sol paneldeki **Validator** kutusuna bir tam sayı girip **Doğrula**'ya basın:
-
-| Giriş | Sonuç | Etki |
-|---|---|---|
-| `21` | `Accept: v8 düğümü` | İlgili tohum **mavi** vurgulanır |
-| `34` | `Accept: v9 düğümü` | İlgili tohum **mavi** vurgulanır |
-| `89` | `Accept: v11 düğümü` | İlgili tohum **mavi** vurgulanır |
-| `22` | `Reject — en yakın: 21, 34` | Vurgu yok, en yakın iki Fibonacci yazılır |
-| `100` | `Reject — en yakın: 89, 144` | Vurgu yok |
-
-### ⚡ Animasyon Hızı
-
-| Seçenek | Aralık |
-|---|---|
-| 🐢 **Yavaş** | 500 ms / kare |
-| 🚶 **Normal** | 200 ms / kare |
-| 🏃 **Hızlı** | 50 ms / kare |
-| ⚡ **Anında** | Tüm tohumları tek karede çiz |
-
-### 🖱️ Etkileşim
+### Etkileşim (Spiral Üzerinde)
 
 | Eylem | Sonuç |
 |---|---|
-| **Mouse scroll / iki-parmak scroll** | İmleç-merkezli yakınlaştırma / uzaklaştırma |
+| **Mouse scroll** | İmleç-merkezli zoom in / out |
 | **Sol-tık + sürükle (boş alan)** | Pan — görünümü kaydır |
-| **Sol-tık (tohum üstüne)** | Tohumu **mor** ile seç → sağ panelde i, F(i), açı (i·α mod 360°), yarıçap, konum |
-| **Aynı tohuma tekrar tık** | Seçimi kaldırır (toggle) |
-| **◀ Geri / ▶ Adım** | Manuel adım — animasyondan bağımsız tek tek ilerle/geri al |
+| **Sol-tık (tohum üstü, kısa)** | InfoCard'ta o tohumun indeksini göster |
+| **Hover** | Aynı şekilde InfoCard'ı canlı günceller |
 
-### 🪟 Analiz Pencereleri
+### Graf Menüsü
 
-Sağ paneldeki butonlardan açılır — her biri ayrı bir pencerede çalışır:
-
-| Buton | Pencere |
+| Öğe | Ne Yapar |
 |---|---|
-| 📈 **Yakınsama Grafiği** | F(i+1)/F(i) → φ — üstte oran/φ kıyaslaması, altta \|fark\| log skala |
-| ⚖️ **Açı Karşılaştırma** | İki spirali yan yana çiz — preset butonlar: 137.5° vs 90° / 137.0° / 60° |
-| 🔍 **BFS / DFS Gezintisi** | Kök seçimli BFS veya DFS animasyonu — Spiral veya Delaunay (scipy) |
-| 🛣️ **En Kısa Yol (Dijkstra)** | Kaynak → hedef en kısa yol; toplam ağırlık ekranda |
-| **Komşuluk Matrisi** | Boyut ayarlanabilir (2–50), yatay/dikey scrollbar — Aᵢⱼ = w(vᵢ,vⱼ) |
+| 🕸️ **Graf Görünümü** | Ana spirali **toggle ile** graf moduna çevirir: Fibonacci tohumları büyük + lacivert disk, diğerleri küçük + soluk gri. Yönlü kenarlar (v₀ → v₁ → ...) φ'ye yakınlığa göre **renk gradyanı** ile çizilir (yakın olanlar koyu lacivert, uzak olanlar soluk). Mouse hover ile düğüm/kenar tooltip'i (`v8 \| F = 21 \| konum`, `v7 → v8 \| w = 1.6250`). Menüye tekrar tıklamak modu kapatır. |
+| 📊 **Komşuluk Matrisi** | Aᵢⱼ = w(vᵢ,vⱼ) — boyut 2–50 ayarlanabilir, scroll'lu QTableWidget. Spiral graf yönlü ve doğrusal olduğu için matris çoğunlukla seyrek; sadece diyagonalın hemen üstündeki köşede φ'ye yakın değerler. |
+| ✅ **Fibonacci Doğrulayıcı** | Bir tam sayı yaz, "Doğrula" → Accept ise ilgili tohum ana spiralde **mavi vurgu** alır; Reject ise alt satırda en yakın iki Fibonacci verilir. |
 
-> 💡 BFS/DFS ve Dijkstra pencerelerinde **Delaunay graf** seçeneği `scipy` gerektirir. Spiral grafı doğrusal yol olduğu için BFS = DFS, ama Delaunay komşuluk grafında BFS dalga dalga, DFS spiral kolu boyunca ilerler — **en eğitsel kıyaslama** budur.
+### Görselleştir Menüsü
+
+| Öğe | Ne Yapar |
+|---|---|
+| 📈 **Yakınsama Grafiği** | Ayrı pencerede iki alt-grafik: üstte F(i+1)/F(i) lacivert eğri + kesikli φ referansı; altta \|fark\| log-skala kırmızı eğri. Yakınsamanın üstel hızı somut olarak görünür. |
+| ⚖️ **Açı Karşılaştırma** | İki açıyı yan yana çizer. 3 hazır preset: `137.5° vs 90°`, `137.5° vs 137.0°`, `137.5° vs 60°`. Altın açıdan en ufak sapmanın bile spirali nasıl bozduğunu görsel olarak kanıtlar. |
 
 ---
 
-## 📊 Simülasyon Özellikleri
+## 📁 Proje Yapısı
 
-### 🌀 Spiral Kol Sayıları
+### Domain (matematiksel çekirdek)
 
-Ayçiçeğindeki **görünür spiral kollar** (saat yönünde ve tersi) her zaman **ardışık iki Fibonacci sayısıdır**:
+| Dosya | Sorumluluk |
+|---|---|
+| `fibonacci.py` | İteratif Fibonacci üretimi + tek değer hesabı + büyük sayı bilimsel notasyon |
+| `utils.py` | φ ve altın açı sabitleri, ardışık oran, \|oran−φ\| farkı, Öklid mesafesi |
+| `positioning.py` | Vogel formülünü uygulayıp tohum koordinatlarını üretir (`c=4` ölçek) |
+| `graph_builder.py` | NetworkX `DiGraph` inşası — düğüm öznitelikleri + `agirlik = F(i+1)/F(i)` |
+| `validator.py` | Bir sayının Fibonacci olup olmadığını test eder (`5x²±4` tam kare yöntemi + dizide arama), en yakın iki Fibonacci'yi bulur |
+| `graph_traversal.py` | BFS / DFS — undirected, kararlı sıralama (yedek `main_legacy.py` için) |
 
-| n aralığı | Saat yönü | Saat tersi |
-|---|---|---|
-| ~50 – 120 | **13** | **21** |
-| ~120 – 250 | **21** | **34** |
-| ~250 – 500 | **34** | **55** |
-| ~500 – 1000 | **55** | **89** |
-| 1000+ | **89** | **144** |
+### Sunum (PySide6 UI)
 
-### 📈 Yakınsama Tablosu  (F(n+1)/F(n) → φ)
+| Dosya | Sorumluluk |
+|---|---|
+| `ui/app.py` | `QApplication` kurulumu + `main()` giriş noktası |
+| `ui/theme.py` | Akademik aydınlık tema — renk paleti + global Qt stylesheet |
+| `ui/main_window.py` | Ana pencere — TopBar + SpiralCanvas + InfoCard + menü yönetimi |
+| `ui/top_bar.py` | n / α / Çiz / Animasyon / Hız + 2 menü düğmesi (Graf, Görselleştir) |
+| `ui/spiral_canvas.py` | matplotlib qtagg canvas — spiral çizim, animasyon (QTimer), graf modu, zoom/pan, validator vurgu |
+| `ui/info_card.py` | Sağ-üst overlay kart — F oranı, tohum bilgisi |
+| `ui/windows/base.py` | `AnalyticsWindow` taban + `WindowManager` (tek-instance) |
+| `ui/windows/fibonacci_validator.py` | Sayı doğrulayıcı + cross-window mavi vurgu sinyali |
+| `ui/windows/convergence.py` | F(n+1)/F(n) → φ yakınsama grafiği |
+| `ui/windows/comparison.py` | İki açıyı yan yana karşılaştırma |
+| `ui/windows/adjacency_matrix.py` | QTableWidget tabanlı komşuluk matrisi |
+
+### Test
+
+| Dosya | Sorumluluk |
+|---|---|
+| `tests/test_fibonacci.py`, `test_utils.py`, `test_validator.py`, vb. | Domain birim testleri (unittest + pytest) |
+| `tests/test_*_window.py`, `test_*.py` | UI testleri (pytest-qt) |
+| `tests/conftest.py` | `QT_QPA_PLATFORM=offscreen` ayarı, qtbot fixture |
+
+### Yedek
+
+| Dosya | Sorumluluk |
+|---|---|
+| `main_legacy.py` | Eski Tkinter arayüzünü başlatır (BFS/DFS, Dijkstra, Tohum Seçimi gibi PySide6'da kaldırılan pencereler bunda hâlâ var) |
+| `gui.py`, `animator.py`, `*_window.py` (eski) | Tkinter çağındaki kod — silinmedi, geri-dönüş yolu olarak korunuyor |
+
+---
+
+## 📊 Bazı Sayısal Olgular
+
+### Yakınsama Tablosu (F(n+1)/F(n) → φ)
 
 `φ ≈ 1.6180339887498949`
 
@@ -293,37 +266,29 @@ Ayçiçeğindeki **görünür spiral kollar** (saat yönünde ve tersi) her zama
 | 20 | 6 765 | 10 946 | 1.6180339985218033 | **9.772 × 10⁻⁹** |
 | 30 | 832 040 | 1 346 269 | 1.6180339887505408 | **6.459 × 10⁻¹³** |
 
-> Yakınsama hızı **üstel**: her yeni terimde fark yaklaşık `1/φ²` katı küçülür.
+Her yeni terimde fark yaklaşık `1/φ²` katı küçülür — **üstel yakınsama**.
 
-### ⏱️ Performans Tablosu
+### Görünür Spiral Kol Sayıları
 
-(Intel/AMD masaüstü, Python 3.13.x — `fibonacci_dizisi` + `grafi_olustur` + `tum_konumlar` toplam süresi)
+Ayçiçeğindeki spiral kollar (saat yönü / saat tersi) **her zaman ardışık iki Fibonacci sayısıdır**:
 
-| n | Süre (ms) | Düğüm | Kenar |
-|---:|---:|---:|---:|
-| 100 | 0.45 | 100 | 99 |
-| 200 | 0.54 | 200 | 199 |
-| 500 | 1.06 | 500 | 499 |
-| 1000 | 2.17 | 1000 | 999 |
-| 2000 | 4.51 | 2000 | 1999 |
+| n aralığı | Saat yönü | Saat tersi |
+|---|---|---|
+| ~50 – 120 | **13** | **21** |
+| ~120 – 250 | **21** | **34** |
+| ~250 – 500 | **34** | **55** |
+| ~500 – 1000 | **55** | **89** |
+| 1000+ | **89** | **144** |
 
-> Çizim/animasyon süresine matplotlib yeniden çizim maliyeti eklenir; n=2000'de bile tamamlama 1 saniyenin altındadır.
+### Algoritma Karmaşıklığı
 
----
-
-## 🔬 Algoritma Karmaşıklığı
-
-| 🧩 İşlem | ⏱️ Karmaşıklık | 📝 Not |
+| İşlem | Karmaşıklık | Not |
 |---|---|---|
 | Fibonacci dizisi üretimi | **O(n)** | İteratif, sabit ek bellek |
-| Tohum konum hesabı (Vogel) | **O(n)** | Her i için sabit zamanlı `cos`, `sin` |
-| Graf inşası (V, E ekleme) | **O(n)** | NetworkX hash-tabanlı sözlük |
-| Animasyon (yeniden çizim) | **O(n²)** | Her karede biriken tohumlar yeniden boyanır |
-| Validator (Fibonacci testi) | **O(log n)** | `5x²±4` tam kare testi (`isqrt`) |
-| En yakın iki Fibonacci | **O(n)** | Sıralı dizide tek taramayla |
-| BFS / DFS gezintisi | **O(\|V\| + \|E\|)** | Komşuluk listesi üzerinden, undirected |
-| Dijkstra en kısa yol | **O((\|V\| + \|E\|) log \|V\|)** | NetworkX heap tabanlı implementasyon |
-| Delaunay üçgenlemesi | **O(n log n)** | scipy ile (BFS/DFS & Dijkstra'nın opsiyonel modu) |
+| Vogel tohum konumları | **O(n)** | Her i için sabit zamanlı cos/sin |
+| Graf inşası (V, E) | **O(n)** | NetworkX hash-tabanlı |
+| Validator (Fibonacci testi) | **O(log n)** | `5x²±4` tam kare testi |
+| En yakın iki Fibonacci | **O(n)** | Sıralı dizide tek tarama |
 
 ---
 
@@ -331,14 +296,14 @@ Ayçiçeğindeki **görünür spiral kollar** (saat yönünde ve tersi) her zama
 
 1. **Vogel, H.** (1979). *A better way to construct the sunflower head.* Mathematical Biosciences, **44**(3-4), 179–189.
 2. **Rosen, K. H.** (2019). *Discrete Mathematics and Its Applications* (8th ed.). McGraw-Hill Education.
-3. **Knuth, D. E.** (1997). *The Art of Computer Programming, Volume 1: Fundamental Algorithms* (3rd ed.). Addison-Wesley.
-4. **Livio, M.** (2002). *The Golden Ratio: The Story of Phi, the World's Most Astonishing Number.* Broadway Books.
-5. **Hagberg, A. A., Schult, D. A., & Swart, P. J.** (2008). *Exploring network structure, dynamics, and function using NetworkX.* Proceedings of the 7th Python in Science Conference (SciPy2008), 11–15.
+3. **Knuth, D. E.** (1997). *The Art of Computer Programming, Volume 1.* Addison-Wesley.
+4. **Livio, M.** (2002). *The Golden Ratio: The Story of Phi.* Broadway Books.
+5. **Hagberg, A. A., Schult, D. A., & Swart, P. J.** (2008). *Exploring network structure with NetworkX.* SciPy2008 Proceedings, 11–15.
 6. **Hunter, J. D.** (2007). *Matplotlib: A 2D graphics environment.* Computing in Science & Engineering, **9**(3), 90–95.
 7. **Mitchison, G. J.** (1977). *Phyllotaxis and the Fibonacci series.* Science, **196**(4287), 270–275.
 8. **Jean, R. V.** (1994). *Phyllotaxis: A Systemic Study in Plant Morphogenesis.* Cambridge University Press.
-9. **Stewart, I.** (1995). *Nature's Numbers: The Unreal Reality of Mathematics.* Basic Books.
-10. **Adam, J. A.** (2011). *Mathematics in Nature: Modeling Patterns in the Natural World.* Princeton University Press.
+9. **Adam, J. A.** (2011). *Mathematics in Nature.* Princeton University Press.
+10. **Dwyer, A.** (2011). *The Secret of the Fibonacci Sequence in Trees.* American Museum of Natural History — Young Naturalist Awards.
 
 ---
 

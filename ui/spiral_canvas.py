@@ -345,23 +345,6 @@ class SpiralCanvas(QWidget):
                 self._tooltip.set_visible(False)
                 self._canvas.draw_idle()
 
-    # ---- Sığdır ----
-
-
-    def sigdir(self) -> None:
-        """xlim/ylim'i çizilen veri sınırına %5 padding ile yeniden oturt."""
-        if not self._konumlar:
-            return
-        xs = [p[0] for p in self._konumlar]
-        ys = [p[1] for p in self._konumlar]
-        xmin, xmax = min(xs), max(xs)
-        ymin, ymax = min(ys), max(ys)
-        pad_x = (xmax - xmin) * 0.05 + 1.0
-        pad_y = (ymax - ymin) * 0.05 + 1.0
-        self._axes.set_xlim(xmin - pad_x, xmax + pad_x)
-        self._axes.set_ylim(ymin - pad_y, ymax + pad_y)
-        self._canvas.draw_idle()
-
     # ---- Scroll zoom ----
 
     def _scroll_handler(self, event) -> None:
