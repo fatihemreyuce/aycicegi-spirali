@@ -7,7 +7,7 @@ ve sağda 3 ana menü (Graf / Algoritma / Görselleştir).
 Bu modülde menülerin içeriği henüz bağlanmadı — Task 11'de bağlanacak.
 """
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QFrame,
     QComboBox,
+    QAbstractSpinBox,
 )
 
 from utils import ALTIN_ACI_DERECE
@@ -58,6 +59,8 @@ class TopBar(QWidget):
         self.n_kutu.setRange(50, 2000)
         self.n_kutu.setValue(100)
         self.n_kutu.setFixedWidth(80)
+        self.n_kutu.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.n_kutu.setAlignment(Qt.AlignmentFlag.AlignCenter)
         duzen.addWidget(self.n_kutu)
 
         # α
@@ -69,6 +72,8 @@ class TopBar(QWidget):
         self.aci_kutu.setValue(ALTIN_ACI_DERECE)
         self.aci_kutu.setSuffix("°")
         self.aci_kutu.setFixedWidth(100)
+        self.aci_kutu.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.aci_kutu.setAlignment(Qt.AlignmentFlag.AlignCenter)
         duzen.addWidget(self.aci_kutu)
 
         # Çiz
