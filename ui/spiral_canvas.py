@@ -58,6 +58,20 @@ def _fibonacci_indeks_kumesi(n: int) -> set[int]:
     return {f for f in fib if 0 <= f < n}
 
 
+def _nokta_boyutu(n: int) -> float:
+    """
+    Spiral modunda tohum boyutunu n'e göre adaptif hesapla.
+
+    Vogel modelinde komşular arası mesafe ~sabit (c≈1) ama spiral yarıçapı
+    √n ile büyür → autoscale ekranı geriye çekince noktalar küçülür.
+    Bunu telafi etmek için scatter `s` (pt²) değerini 1/√n ile ölçekle,
+    minimum okunur boyutta tut.
+    """
+    if n <= 0:
+        return 18.0
+    return max(8.0, 180.0 / math.sqrt(n))
+
+
 class SpiralCanvas(QWidget):
     """
     Spirali çizen ve etkileşim yönetim Qt widget'ı.
@@ -179,6 +193,10 @@ class SpiralCanvas(QWidget):
         xs = [p[0] for p in konumlar]
         ys = [p[1] for p in konumlar]
 
+        # Spiral modunda n'e bağlı adaptif taban boyut
+        taban = _nokta_boyutu(toplam)
+        fib_boyut = taban * 1.6  # Fibonacci tohumları %60 daha büyük
+
         # Renk + boyut hesaplaması — graf modunda görsel hiyerarşi devreye girer
         renkler: list[str] = []
         boyutlar: list[float] = []
@@ -186,15 +204,15 @@ class SpiralCanvas(QWidget):
             # Bekleyen ve etkileşim öncelikleri (her iki modda da geçerli)
             if i > kare_no:
                 renkler.append(theme.BEKLEME)
-                boyutlar.append(10 if not self._graf_modu else 12)
+                boyutlar.append(taban if not self._graf_modu else 12)
                 continue
             if i == kare_no:
                 renkler.append(theme.VURGU)
-                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
+                boyutlar.append(fib_boyut if not self._graf_modu else (60 if i in fib_indeksleri else 18))
                 continue
             if i in self._vurgu_indeksleri:
                 renkler.append(theme.MAVI_VURGU)
-                boyutlar.append(10 if not self._graf_modu else (60 if i in fib_indeksleri else 18))
+                boyutlar.append(fib_boyut if not self._graf_modu else (60 if i in fib_indeksleri else 18))
                 continue
             # Ziyaret edilmiş düğümler için mod-bağımlı renk + boyut
             if self._graf_modu:
@@ -207,14 +225,16 @@ class SpiralCanvas(QWidget):
             else:
                 if i in fib_indeksleri:
                     renkler.append(theme.VURGU)
+                    boyutlar.append(fib_boyut)
                 else:
                     renkler.append(theme.METIN_ANA)
-                boyutlar.append(10)
+                    boyutlar.append(taban)
 
+        # Spiral modunda da ince krem halo: küçük noktaların kontrastını arttırır
         self._scatter = self._axes.scatter(
             xs, ys, s=boyutlar, c=renkler,
-            edgecolors=(theme.ARKA_PLAN_KART if self._graf_modu else "none"),
-            linewidths=(0.8 if self._graf_modu else 0),
+            edgecolors=theme.ARKA_PLAN_KART,
+            linewidths=(0.8 if self._graf_modu else 0.4),
             zorder=2,
         )
 
