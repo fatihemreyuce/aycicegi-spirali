@@ -25,6 +25,7 @@ MENU_BASLIKLARI: dict[str, str] = {
     "graf.validator": "Fibonacci Doğrulayıcı",
     "gor.yakinsama": "Yakınsama Grafiği",
     "gor.karsilastirma": "Açı Karşılaştırma",
+    "gor.ayciegi": "Ayçiçeği Görünümü",
 }
 
 
@@ -132,6 +133,13 @@ class MainWindow(QMainWindow):
                 self.canvas.graf_modu_kapat()
             else:
                 self.canvas.graf_modu_ac()
+            return
+        if eylem_id == "gor.ayciegi":
+            # Kayıt için temiz tohum yatağı görünümü — toggle
+            if self.canvas.ayciegi_modu_acik_mi():
+                self.canvas.ayciegi_modu_kapat()
+            else:
+                self.canvas.ayciegi_modu_ac()
             return
         self._pencere_yoneticisi.ac_veya_one_getir(
             eylem_id,

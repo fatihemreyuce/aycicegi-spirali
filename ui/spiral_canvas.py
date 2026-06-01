@@ -72,6 +72,29 @@ def _nokta_boyutu(n: int) -> float:
     return max(8.0, 180.0 / math.sqrt(n))
 
 
+# Ayçiçeği modu renk gradyanı — merkez koyu kahve → dış olgun amber
+_AYCIEGI_C_MERKEZ = (0.165, 0.086, 0.063)
+_AYCIEGI_C_DIS = (0.690, 0.439, 0.125)
+_AYCIEGI_ZEMIN = "#fcfaf3"
+
+
+def _ayciegi_renkleri(konumlar: list[tuple[float, float]]) -> list[tuple[float, float, float]]:
+    """Her tohum için merkezden uzaklığa göre kahve→amber gradient rengi döndürür."""
+    if not konumlar:
+        return []
+    rs = [math.hypot(x, y) for x, y in konumlar]
+    r_max = max(rs) or 1.0
+    out: list[tuple[float, float, float]] = []
+    for r in rs:
+        t = r / r_max
+        out.append((
+            _AYCIEGI_C_MERKEZ[0] + (_AYCIEGI_C_DIS[0] - _AYCIEGI_C_MERKEZ[0]) * t,
+            _AYCIEGI_C_MERKEZ[1] + (_AYCIEGI_C_DIS[1] - _AYCIEGI_C_MERKEZ[1]) * t,
+            _AYCIEGI_C_MERKEZ[2] + (_AYCIEGI_C_DIS[2] - _AYCIEGI_C_MERKEZ[2]) * t,
+        ))
+    return out
+
+
 class SpiralCanvas(QWidget):
     """
     Spirali çizen ve etkileşim yönetim Qt widget'ı.
@@ -134,6 +157,9 @@ class SpiralCanvas(QWidget):
         self._son_motion_zamani: float = 0.0
         self._motion_throttle_sn: float = 0.03
 
+        # Ayçiçeği modu state — kayıt için temiz tohum yatağı görünümü
+        self._ayciegi_modu: bool = False
+
         self._eksenleri_hazirla()
 
     # ---- Genel API ----
@@ -192,6 +218,32 @@ class SpiralCanvas(QWidget):
 
         xs = [p[0] for p in konumlar]
         ys = [p[1] for p in konumlar]
+
+        # Ayçiçeği modu — sadece yerleşmiş tohumlar, gradient renk, vurgu yok.
+        # Kayıt için temiz görünüm: ne Fibonacci kırmızısı ne aktif halka.
+        if self._ayciegi_modu and not self._graf_modu:
+            son = max(0, kare_no + 1)
+            yer_kon = konumlar[:son]
+            if not yer_kon:
+                self._scatter = None
+                self._canvas.draw_idle()
+                return
+            taban = _nokta_boyutu(toplam)
+            renkler_grad = _ayciegi_renkleri(yer_kon)
+            self._axes.set_facecolor(_AYCIEGI_ZEMIN)
+            self._scatter = self._axes.scatter(
+                [p[0] for p in yer_kon],
+                [p[1] for p in yer_kon],
+                s=taban * 2.2,
+                c=renkler_grad,
+                edgecolors="none",
+                linewidths=0,
+                zorder=2,
+            )
+            self._tooltip = None
+            self._oklar = []
+            self._canvas.draw_idle()
+            return
 
         # Spiral modunda n'e bağlı adaptif taban boyut
         taban = _nokta_boyutu(toplam)
@@ -561,3 +613,29 @@ class SpiralCanvas(QWidget):
 
     def graf_modu_acik_mi(self) -> bool:
         return self._graf_modu
+
+    # ---- Ayçiçeği modu (kayıt için temiz tohum yatağı görünümü) ----
+
+    def ayciegi_modu_ac(self) -> None:
+        """Tüm Fibonacci vurgularını kapat, radial gradient tohum yatağı çiz."""
+        if self._ayciegi_modu:
+            return
+        # Graf modu açıksa kapat — ayçiçeği modu onunla birleşmez
+        if self._graf_modu:
+            self.graf_modu_kapat()
+        self._ayciegi_modu = True
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def ayciegi_modu_kapat(self) -> None:
+        """Standart akademik spiral görünümüne geri dön."""
+        if not self._ayciegi_modu:
+            return
+        self._ayciegi_modu = False
+        # Zemin rengini geri al
+        self._axes.set_facecolor(theme.ARKA_PLAN_KART)
+        if self._konumlar:
+            self._yeniden_ciz()
+
+    def ayciegi_modu_acik_mi(self) -> bool:
+        return self._ayciegi_modu

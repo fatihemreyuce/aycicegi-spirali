@@ -10,12 +10,12 @@ from ui.top_bar import TopBar
 from utils import ALTIN_ACI_DERECE
 
 
-def test_topbar_n_kutu_50_2000_arasi(qtbot):
+def test_topbar_n_kutu_50_5000_arasi(qtbot):
     bar = TopBar()
     qtbot.addWidget(bar)
     assert isinstance(bar.n_kutu, QSpinBox)
     assert bar.n_kutu.minimum() == 50
-    assert bar.n_kutu.maximum() == 2000
+    assert bar.n_kutu.maximum() == 5000  # ayçiçeği modu için F(19)=4181'i kapsar
     assert bar.n_kutu.value() == 100  # varsayılan
 
 

@@ -56,7 +56,7 @@ class TopBar(QWidget):
         # n
         duzen.addWidget(QLabel("n"))
         self.n_kutu = QSpinBox()
-        self.n_kutu.setRange(50, 2000)
+        self.n_kutu.setRange(50, 5000)
         self.n_kutu.setValue(100)
         self.n_kutu.setFixedWidth(80)
         self.n_kutu.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -113,6 +113,7 @@ class TopBar(QWidget):
         self.gorsel_butonu = self._menu_butonu_yarat("Görselleştir ▾", [
             ("gor.yakinsama", "Yakınsama Grafiği"),
             ("gor.karsilastirma", "Açı Karşılaştırma"),
+            ("gor.ayciegi", "Ayçiçeği Görünümü"),
         ])
         duzen.addWidget(self.gorsel_butonu)
 
