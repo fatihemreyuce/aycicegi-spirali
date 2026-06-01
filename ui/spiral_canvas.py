@@ -238,6 +238,19 @@ class SpiralCanvas(QWidget):
             zorder=2,
         )
 
+        # Aktif tohum (kare_no) için belirgin lacivert halka — "şu an buradayım"
+        if 0 <= kare_no < toplam:
+            ax_x, ax_y = konumlar[kare_no]
+            halka_boyut = max(taban, 12.0) * 5.0
+            self._axes.scatter(
+                [ax_x], [ax_y],
+                s=halka_boyut,
+                facecolors="none",
+                edgecolors=theme.AKSAN_KOYU,
+                linewidths=1.8,
+                zorder=5,
+            )
+
         # Fibonacci etiketleri sadece yerleşmiş tohumlara
         for i in fib_indeksleri:
             if i > kare_no:
