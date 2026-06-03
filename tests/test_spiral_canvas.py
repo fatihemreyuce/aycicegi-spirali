@@ -27,9 +27,10 @@ def test_kare_ciz_ilk_kare_sadece_birinci_aktif(qtbot):
     fib = _fibonacci_indeks_kumesi(n)
     canvas._kare_ciz(kare_no=0, toplam=n, konumlar=konumlar, fib_indeksleri=fib)
     renkler = _renk_listesi(canvas)
+    # Yalnızca yerleşmiş tohum çizilir — kare_no=0'da tek nokta, o da aktif (kırmızı).
+    # Yerleşmemiş tohumlar artık hiç çizilmez (eski gri bekleme noktası kaldırıldı).
+    assert len(renkler) == 1
     assert renkler[0].lower() == theme.VURGU.lower()  # aktif → kırmızı
-    for r in renkler[1:]:
-        assert r.lower() == theme.BEKLEME.lower()  # diğerleri gri
 
 
 def test_kare_ciz_orta_kare_karma_renk(qtbot):
@@ -41,6 +42,8 @@ def test_kare_ciz_orta_kare_karma_renk(qtbot):
     fib = _fibonacci_indeks_kumesi(n)  # 0..10 için {0,1,2,3,5,8}
     canvas._kare_ciz(kare_no=5, toplam=n, konumlar=konumlar, fib_indeksleri=fib)
     renkler = _renk_listesi(canvas)
+    # Sadece yerleşmiş tohumlar (0..5) çizilir; bekleyenler hiç çizilmez.
+    assert len(renkler) == 6
     # 0,1,2,3 ziyaret edilmiş — Fibonacci olanlar kırmızı, diğerleri lacivert
     assert renkler[0].lower() == theme.VURGU.lower()   # 0 ∈ fib
     assert renkler[1].lower() == theme.VURGU.lower()   # 1 ∈ fib
@@ -48,8 +51,6 @@ def test_kare_ciz_orta_kare_karma_renk(qtbot):
     assert renkler[3].lower() == theme.VURGU.lower()   # 3 ∈ fib
     assert renkler[4].lower() == theme.METIN_ANA.lower()  # 4 ziyaret, fib değil
     assert renkler[5].lower() == theme.VURGU.lower()   # 5 aktif → kırmızı
-    for r in renkler[6:]:
-        assert r.lower() == theme.BEKLEME.lower()  # bekleyen → gri
 
 
 def test_kare_ciz_son_kare_tam_spiral(qtbot):

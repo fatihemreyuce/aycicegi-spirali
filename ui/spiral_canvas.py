@@ -14,10 +14,14 @@ import math
 import time
 from typing import Optional
 
+import numpy as np
+
 import matplotlib
 matplotlib.use("QtAgg")
+import matplotlib.colors as mcolors
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 from matplotlib.patches import FancyArrowPatch
 from PySide6.QtCore import Signal, QTimer
@@ -132,9 +136,22 @@ class SpiralCanvas(QWidget):
         # Animasyon state
         self._anim_kare: int = -1
         self._anim_toplam: int = 0
+        self._anim_batch: int = 1            # kare başına yerleştirilecek tohum sayısı
         self._timer = QTimer(self)
         self._timer.setSingleShot(False)
         self._timer.timeout.connect(self._animasyon_tick)
+
+        # Hızlı animasyon (artımlı + blitting) state — büyük n'de O(n²) ve artist
+        # churn kaynaklı donmayı önler. Yalnızca spiral/ayçiçeği modunda kullanılır.
+        self._anim_hizli: bool = False
+        self._anim_bg = None                 # blit için arka plan snapshot'ı
+        self._anim_scatter = None            # tüm tohumları içeren kalıcı scatter
+        self._anim_ring = None               # aktif tohum halkası (tek nokta)
+        self._anim_labels: dict[int, object] = {}  # idx → Fibonacci etiketi (Text)
+        self._anim_base_colors = None        # (n,4) RGBA — yerleşmiş tohum renkleri
+        self._anim_aktif_rgba = None         # aktif tohumun vurgu rengi
+        self._anim_edges = None              # graf modu: tüm kenarlar tek LineCollection
+        self._anim_edge_base = None          # (n-1,4) RGBA — kenar renkleri
 
         # Hover/click bağlantıları
         self._canvas.mpl_connect("motion_notify_event", self._hover_handler)
@@ -171,7 +188,18 @@ class SpiralCanvas(QWidget):
         aci_radyan = math.radians(aci_derece)
         self._konumlar = tum_konumlar(n, aci_radyan=aci_radyan)
         self._fib_indeksleri = _fibonacci_indeks_kumesi(n)
+        # Graf modu açıkken grafı yeni n'e göre yeniden kur — aksi halde oklar
+        # eski (küçük) n'in kenarlarında kalır, dış düğümlerde ok görünmez.
+        if self._graf_modu and n > 0:
+            self._G = grafi_olustur(n, aci_radyan=aci_radyan)
         self._yeniden_ciz()
+
+    def hideEvent(self, event):  # noqa: N802 (Qt API)
+        """Widget gizlenince/kapanınca çalışan animasyon timer'ını durdur —
+        yok edilmiş canvas'a ertelenmiş draw_idle düşmesini engeller."""
+        if self._timer.isActive():
+            self._timer.stop()
+        super().hideEvent(event)
 
     # ---- İç çizim ----
 
@@ -208,6 +236,23 @@ class SpiralCanvas(QWidget):
           2) index ∈ fib AND index < kare_no → VURGU (Fibonacci ziyaret edilmiş)
           3) index < kare_no   → METIN_ANA (lacivert)
         """
+        # Hızlı animasyon sürerken dışarıdan tam çizim istendi (graf/ayçiçeği toggle,
+        # validator vurgusu, vb.) → animasyonu temiz kes; aksi halde timer dangling
+        # artist'lere blit/redraw dener. _hizli_animasyon_sonlandir bu metodu yeniden
+        # çağırmadan önce _anim_hizli'yi False yaptığı için sonsuz döngü yok.
+        if self._anim_hizli:
+            if self._timer.isActive():
+                self._timer.stop()
+            self._anim_hizli = False
+            self._anim_bg = None
+            self._anim_scatter = None
+            self._anim_ring = None
+            self._anim_labels = {}
+            self._anim_base_colors = None
+            self._anim_aktif_rgba = None
+            self._anim_edges = None
+            self._anim_edge_base = None
+
         self._axes.clear()
         self._eksenleri_hazirla()
 
@@ -218,6 +263,18 @@ class SpiralCanvas(QWidget):
 
         xs = [p[0] for p in konumlar]
         ys = [p[1] for p in konumlar]
+
+        # Animasyon sırasında çerçeveyi tam spiralin kapsamına kilitle: yerleşmemiş
+        # tohumlar hiç çizilmediği için autoscale'e bırakılırsa görüş alanı her
+        # karede büyüyüp küçülür. Sabit limit → tohumlar merkezden dışa, boş
+        # başlayıp dolan, oynamayan bir çerçevede belirir.
+        self._axes.set_autoscale_on(False)
+        xmin, xmax = min(xs), max(xs)
+        ymin, ymax = min(ys), max(ys)
+        pad_x = (xmax - xmin) * 0.06 or 1.0
+        pad_y = (ymax - ymin) * 0.06 or 1.0
+        self._axes.set_xlim(xmin - pad_x, xmax + pad_x)
+        self._axes.set_ylim(ymin - pad_y, ymax + pad_y)
 
         # Ayçiçeği modu — sadece yerleşmiş tohumlar, gradient renk, vurgu yok.
         # Kayıt için temiz görünüm: ne Fibonacci kırmızısı ne aktif halka.
@@ -249,15 +306,13 @@ class SpiralCanvas(QWidget):
         taban = _nokta_boyutu(toplam)
         fib_boyut = taban * 1.6  # Fibonacci tohumları %60 daha büyük
 
-        # Renk + boyut hesaplaması — graf modunda görsel hiyerarşi devreye girer
+        # Sadece yerleşmiş tohumları (0..kare_no) çiz — yerleşmemişler hiç
+        # görünmez. Eski "gri bekleme noktası" davranışı kaldırıldı; animasyon
+        # tamamen boş sahneden başlayıp tek tek dolar.
+        son = max(0, kare_no + 1)
         renkler: list[str] = []
         boyutlar: list[float] = []
-        for i in range(toplam):
-            # Bekleyen ve etkileşim öncelikleri (her iki modda da geçerli)
-            if i > kare_no:
-                renkler.append(theme.BEKLEME)
-                boyutlar.append(taban if not self._graf_modu else 12)
-                continue
+        for i in range(son):
             if i == kare_no:
                 renkler.append(theme.VURGU)
                 boyutlar.append(fib_boyut if not self._graf_modu else (60 if i in fib_indeksleri else 18))
@@ -283,12 +338,15 @@ class SpiralCanvas(QWidget):
                     boyutlar.append(taban)
 
         # Spiral modunda da ince krem halo: küçük noktaların kontrastını arttırır
-        self._scatter = self._axes.scatter(
-            xs, ys, s=boyutlar, c=renkler,
-            edgecolors=theme.ARKA_PLAN_KART,
-            linewidths=(0.8 if self._graf_modu else 0.4),
-            zorder=2,
-        )
+        if son > 0:
+            self._scatter = self._axes.scatter(
+                xs[:son], ys[:son], s=boyutlar, c=renkler,
+                edgecolors=theme.ARKA_PLAN_KART,
+                linewidths=(0.8 if self._graf_modu else 0.4),
+                zorder=2,
+            )
+        else:
+            self._scatter = None
 
         # Aktif tohum (kare_no) için belirgin lacivert halka — "şu an buradayım"
         if 0 <= kare_no < toplam:
@@ -516,6 +574,7 @@ class SpiralCanvas(QWidget):
         """
         if self._timer.isActive():
             self._timer.stop()
+        self._anim_hizli = False  # önceki çalışmadan kalmış olabilir
 
         self._anim_toplam = toplam_n
         self._aci_derece = aci_derece
@@ -525,6 +584,9 @@ class SpiralCanvas(QWidget):
         self._konumlar = tum_konumlar(toplam_n, aci_radyan=aci_radyan)
         self._fib_indeksleri = _fibonacci_indeks_kumesi(toplam_n)
         self._n = toplam_n
+        # Graf modu açıkken animasyon n'ine göre grafı yeniden kur (spirali_ciz ile aynı neden).
+        if self._graf_modu and toplam_n > 0:
+            self._G = grafi_olustur(toplam_n, aci_radyan=aci_radyan)
 
         # Anında modu
         if interval_ms <= 1:
@@ -538,37 +600,233 @@ class SpiralCanvas(QWidget):
             self.animasyon_bitti.emit()
             return
 
-        # Sahneyi sıfırla (tüm tohumlar gri)
-        self._kare_ciz(
-            kare_no=-1,
-            toplam=toplam_n,
-            konumlar=self._konumlar,
-            fib_indeksleri=self._fib_indeksleri,
-        )
+        # Büyük n'de kare sayısını sınırla: kare başına birden çok tohum yerleştir.
+        # ~300 karede tamamlanır → toplam render maliyeti O(n²) yerine sınırlı kalır.
+        self._anim_batch = max(1, math.ceil(toplam_n / 300)) if toplam_n > 0 else 1
+
+        # Tüm modlar (spiral / ayçiçeği / graf) hızlı artımlı yolu kullanır.
+        self._hizli_animasyon_kur(toplam_n)
 
         self._timer.setInterval(interval_ms)
         self._timer.start()
 
+    def _hizli_animasyon_kur(self, n: int) -> None:
+        """Hızlı (artımlı) animasyon için kalıcı artist'leri bir kez yaratır."""
+        self._anim_hizli = True
+        self._axes.clear()
+        self._eksenleri_hazirla()
+
+        konumlar = self._konumlar
+        xs = np.fromiter((p[0] for p in konumlar), dtype=float, count=n)
+        ys = np.fromiter((p[1] for p in konumlar), dtype=float, count=n)
+
+        # Çerçeveyi tam spiralin kapsamına sabitle (boş başlar, oynamaz)
+        self._axes.set_autoscale_on(False)
+        xmin, xmax = float(xs.min()), float(xs.max())
+        ymin, ymax = float(ys.min()), float(ys.max())
+        pad_x = (xmax - xmin) * 0.06 or 1.0
+        pad_y = (ymax - ymin) * 0.06 or 1.0
+        self._axes.set_xlim(xmin - pad_x, xmax + pad_x)
+        self._axes.set_ylim(ymin - pad_y, ymax + pad_y)
+
+        ayciegi = self._ayciegi_modu and not self._graf_modu
+        graf = self._graf_modu and not self._ayciegi_modu
+        if ayciegi:
+            self._axes.set_facecolor(_AYCIEGI_ZEMIN)
+
+        taban = _nokta_boyutu(n)
+        fib_boyut = taban * 1.6
+
+        # Yerleşmiş tohum renkleri (n,4) + boyutlar — bir kez hesapla
+        base = np.zeros((n, 4), dtype=float)
+        sizes = np.empty(n, dtype=float)
+        if ayciegi:
+            grad = _ayciegi_renkleri(konumlar)
+            for i, (r, g, b) in enumerate(grad):
+                base[i, 0], base[i, 1], base[i, 2], base[i, 3] = r, g, b, 1.0
+            sizes[:] = taban * 2.2
+            self._anim_aktif_rgba = None
+        elif graf:
+            # Graf modu: _kare_ciz graf dalıyla aynı görsel hiyerarşi
+            aksan = mcolors.to_rgba(theme.AKSAN)
+            pasif = mcolors.to_rgba(theme.METIN_PASIF)
+            mavi = mcolors.to_rgba(theme.MAVI_VURGU)
+            for i in range(n):
+                fib_mi = i in self._fib_indeksleri
+                if i in self._vurgu_indeksleri:
+                    base[i] = mavi
+                    sizes[i] = 60 if fib_mi else 18
+                elif fib_mi:
+                    base[i] = aksan
+                    sizes[i] = 60
+                else:
+                    base[i] = pasif
+                    sizes[i] = 12
+            self._anim_aktif_rgba = np.array(mcolors.to_rgba(theme.VURGU), dtype=float)
+        else:
+            vurgu = mcolors.to_rgba(theme.VURGU)
+            metin = mcolors.to_rgba(theme.METIN_ANA)
+            mavi = mcolors.to_rgba(theme.MAVI_VURGU)
+            for i in range(n):
+                if i in self._vurgu_indeksleri:
+                    base[i] = mavi
+                    sizes[i] = fib_boyut
+                elif i in self._fib_indeksleri:
+                    base[i] = vurgu
+                    sizes[i] = fib_boyut
+                else:
+                    base[i] = metin
+                    sizes[i] = taban
+            self._anim_aktif_rgba = np.array(vurgu, dtype=float)
+        self._anim_base_colors = base
+
+        # Graf modu: tüm kenarları (n-1 ardışık) TEK LineCollection olarak yarat —
+        # her karede FancyArrowPatch yeniden yaratmak yerine sadece renk/alpha
+        # güncellenir (donmanın asıl kaynağı buydu). Ok başları animasyonda yok;
+        # animasyon bitince _kare_ciz gerçek okları + tooltip'i çizer.
+        self._anim_edges = None
+        self._anim_edge_base = None
+        if graf and self._G is not None and n >= 2:
+            m = n - 1
+            seg = np.empty((m, 2, 2), dtype=float)
+            ecol = np.empty((m, 4), dtype=float)
+            for i in range(m):
+                seg[i, 0, 0], seg[i, 0, 1] = xs[i], ys[i]
+                seg[i, 1, 0], seg[i, 1, 1] = xs[i + 1], ys[i + 1]
+                w = float(self._G[i][i + 1].get("agirlik", 0.0))
+                ecol[i] = _kenar_rengi(w)
+            self._anim_edge_base = ecol
+            ec0 = ecol.copy()
+            ec0[:, 3] = 0.0
+            self._anim_edges = LineCollection(seg, colors=ec0, linewidths=1.2, zorder=1)
+            self._axes.add_collection(self._anim_edges)
+
+        # Kalıcı scatter — başta tüm tohumlar saydam (görünmez). edgecolors="none":
+        # aksi halde saydam yüzlerin etrafındaki kenar yine de tüm n konumu belli ederdi.
+        ilk = base.copy()
+        ilk[:, 3] = 0.0
+        self._anim_scatter = self._axes.scatter(
+            xs, ys, s=sizes, c=ilk, edgecolors="none", linewidths=0, zorder=2,
+        )
+        self._scatter = self._anim_scatter  # hover hit-test için referans
+
+        # Aktif tohum halkası (tek nokta) — yalnızca düz spiral modunda
+        if not ayciegi and not graf:
+            halka_boyut = max(taban, 12.0) * 5.0
+            self._anim_ring = self._axes.scatter(
+                [xs[0]], [ys[0]], s=halka_boyut,
+                facecolors="none", edgecolors=theme.AKSAN_KOYU,
+                linewidths=1.8, zorder=5,
+            )
+            self._anim_ring.set_visible(False)
+        else:
+            self._anim_ring = None
+
+        # Fibonacci etiketleri — bir kez yarat, görünmez başlat (ayçiçeği hariç)
+        self._anim_labels = {}
+        if not ayciegi:
+            font_renk = theme.AKSAN_KOYU if graf else "#555555"
+            font_boyut = 9 if graf else 8
+            for idx in self._fib_indeksleri:
+                if idx >= n:
+                    continue
+                x, y = konumlar[idx]
+                t = self._axes.text(
+                    x + 1.5, y + 1.5, str(idx),
+                    fontsize=font_boyut, color=font_renk, family="Georgia", zorder=4,
+                )
+                t.set_visible(False)
+                self._anim_labels[idx] = t
+
+        self._tooltip = None
+        self._oklar = []
+        self._canvas.draw_idle()
+
+    def _hizli_kare_ciz(self, k: int) -> None:
+        """
+        Hızlı yol: kalıcı artist'lerin yalnızca renk/görünürlüğünü güncelle, sonra
+        draw_idle. axes.clear() + artist yeniden-yaratma yok → kare başına maliyet
+        sabit kalır (büyük n'de donma yok). Blitting kullanılmaz (gösterilmemiş
+        canvas / detached renderer'a karşı sağlam).
+        """
+        if self._anim_scatter is None or self._anim_base_colors is None:
+            return
+        n = self._anim_toplam
+        k = max(0, min(k, n - 1))
+
+        fc = self._anim_base_colors.copy()
+        if k + 1 < n:
+            fc[k + 1:, 3] = 0.0  # yerleşmemiş tohumlar saydam
+        if self._anim_aktif_rgba is not None:
+            fc[k] = self._anim_aktif_rgba  # aktif tohum vurgulu
+        self._anim_scatter.set_facecolors(fc)
+
+        # Graf kenarları: i. kenar (i→i+1) ancak i+1 yerleştiyse görünür → i>=k gizli
+        if self._anim_edges is not None and self._anim_edge_base is not None:
+            ec = self._anim_edge_base.copy()
+            if k < len(ec):
+                ec[k:, 3] = 0.0
+            self._anim_edges.set_colors(ec)
+
+        if self._anim_ring is not None:
+            self._anim_ring.set_offsets([self._konumlar[k]])
+            self._anim_ring.set_visible(True)
+
+        for idx, t in self._anim_labels.items():
+            if idx <= k and not t.get_visible():
+                t.set_visible(True)
+
+        self._canvas.draw_idle()
+
+    def _hizli_animasyon_sonlandir(self) -> None:
+        """Hızlı animasyon artist'lerini bırak ve sahneyi standart (statik) çiz."""
+        self._anim_hizli = False
+        self._anim_bg = None
+        self._anim_scatter = None
+        self._anim_ring = None
+        self._anim_labels = {}
+        self._anim_base_colors = None
+        self._anim_aktif_rgba = None
+        self._anim_edges = None
+        self._anim_edge_base = None
+        kare = max(0, min(self._anim_kare, self._anim_toplam - 1))
+        self._kare_ciz(
+            kare_no=kare,
+            toplam=self._anim_toplam,
+            konumlar=self._konumlar,
+            fib_indeksleri=self._fib_indeksleri,
+        )
+
     def animasyonu_durdur(self) -> None:
         """Animasyonu durdurur; sahne mevcut karede donar."""
-        if self._timer.isActive():
+        calisiyordu = self._timer.isActive()
+        if calisiyordu:
             self._timer.stop()
+        # Hızlı yol artist'leri 'animated' — normal redraw'da kaybolurlar; mevcut
+        # kareyi standart (kalıcı) artist'lerle sabitle ki donmuş görüntü kalıcı olsun.
+        if self._anim_hizli:
+            self._hizli_animasyon_sonlandir()
 
     def hiz_guncelle(self, interval_ms: int) -> None:
         """Çalışan animasyonun interval'ını canlı günceller."""
         self._timer.setInterval(interval_ms)
 
     def _animasyon_tick(self) -> None:
-        """QTimer tick — bir sonraki kareyi yerleştir."""
-        self._anim_kare += 1
-        self._kare_ciz(
-            kare_no=self._anim_kare,
-            toplam=self._anim_toplam,
-            konumlar=self._konumlar,
-            fib_indeksleri=self._fib_indeksleri,
-        )
+        """QTimer tick — bir sonraki kare(ler)i yerleştir."""
+        self._anim_kare = min(self._anim_kare + self._anim_batch, self._anim_toplam - 1)
+        if self._anim_hizli:
+            self._hizli_kare_ciz(self._anim_kare)
+        else:
+            self._kare_ciz(
+                kare_no=self._anim_kare,
+                toplam=self._anim_toplam,
+                konumlar=self._konumlar,
+                fib_indeksleri=self._fib_indeksleri,
+            )
         if self._anim_kare >= self._anim_toplam - 1:
             self._timer.stop()
+            if self._anim_hizli:
+                self._hizli_animasyon_sonlandir()
             self.animasyon_bitti.emit()
 
     # ---- Validator vurgu (cross-window) ----

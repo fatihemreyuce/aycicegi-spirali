@@ -68,15 +68,20 @@ class MainWindow(QMainWindow):
         self._pencere_yoneticisi = WindowManager()
         self.top_bar.menu_eylemi.connect(self._menu_eylemi_geldi)
 
-        # İlk çizim
-        self._cizim_istendi(self.top_bar.n_kutu.value(), self.top_bar.aci_kutu.value())
+        # İlk çizim — açılışta spiral anında görünür (animasyon yalnızca Çiz'e basınca).
+        self.canvas.spirali_ciz(self.top_bar.n_kutu.value(), self.top_bar.aci_kutu.value())
+        self.info_card.n_degisti(self.top_bar.n_kutu.value())
 
     def _cizim_istendi(self, n: int, aci_derece: float) -> None:
         # Çalışan animasyonu iptal — setChecked(False) toggle sinyali üzerinden
         # _animasyon_toggle_geldi'yi tetikler ve animasyonu_durdur çağrılır.
         if self.top_bar.animasyon_butonu.isChecked():
             self.top_bar.animasyon_butonu.setChecked(False)
-        self.canvas.spirali_ciz(n, aci_derece)
+        # Çiz: tüm noktaları tek karede değil, tohumları tek tek sırayla yerleştir
+        # (başta boş sahne → sonda tam spiral). Hız seçicisi pace'i belirler;
+        # "Anında" seçiliyse animasyonu_basla zaten tek karede çizer.
+        interval = self._mevcut_interval_ms()
+        self.canvas.animasyonu_basla(toplam_n=n, aci_derece=aci_derece, interval_ms=interval)
         self.info_card.n_degisti(n)
 
     def resizeEvent(self, event):  # noqa: N802 (Qt API)
