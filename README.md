@@ -160,3 +160,22 @@ Bu proje **İstanbul Gedik Üniversitesi Ayrık Matematik dersi dönem projesi**
 ---
 
 ## 🎯 Neden Bu Proje?
+
+Fibonacci dizisi ve altın oran genellikle formüller ve sayısal örnekler üzerinden anlatılır. Ancak bu matematiksel yapıların doğada nasıl ortaya çıktığını yalnızca formüllere bakarak anlamak her zaman kolay değildir.
+
+Bu proje, bu soyut kavramları **görsel, etkileşimli ve algoritmik bir modele** dönüştürmek amacıyla geliştirildi.
+
+Temel hedef, yalnızca güzel bir ayçiçeği spirali çizmek değil; spiral yapının arkasındaki matematiği farklı açılardan incelemektir.
+
+### 1. Soyut Matematiği Görselleştirmek
+
+Kullanıcı tohum sayısını ve açıyı değiştirerek ortaya çıkan yapıyı doğrudan gözlemleyebilir.
+
+Özellikle altın açıdan yapılan küçük değişikliklerin spiral düzeni üzerindeki etkisi, matematiksel bir değerin geometrik sonucu olarak etkileşimli biçimde görülebilir.
+
+### 2. Fibonacci ve Altın Oran İlişkisini İncelemek
+
+Ardışık Fibonacci sayılarının oranı:
+
+```text
+F(n+1) / F(n)
